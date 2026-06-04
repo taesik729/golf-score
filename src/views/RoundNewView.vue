@@ -155,11 +155,32 @@ async function onPhoto(e) {
     // 이미지 리사이즈 (1024px)
     const base64 = await resizeImage(file, 1024)
 
-    const prompt = `이 사진은 골프 스코어카드입니다.
-각 홀의 파(PAR)와 타수(SCORE)를 JSON 배열로 추출해주세요.
-반드시 아래 형식만 반환하세요 (다른 텍스트 없이):
+    const prompt = `이 사진은 골프 스코어카드입니다. 아래 규칙에 따라 분석해주세요.
+
+[스코어카드 형식 판별]
+1. 타수 직접 표기형: 각 홀에 실제 타수(예: 3,4,5,6)가 적힌 경우
+2. +/- 오버파 표기형: 각 홀에 파 기준 오버/언더 수치(예: 0,1,2,-1)가 적힌 경우
+   - IN/OUT 행에 0,1,2,3 같은 작은 숫자가 나열된 경우 이 형식일 가능성 높음
+   - 이 경우 파를 추정하여 실제 타수 = 파 + 오버파 수치로 계산
+
+[골프장 파 기본값]
+- 파3홀, 파4홀, 파5홀이 섞여있음
+- 18홀 전체 파는 보통 72 (파3×4, 파4×10, 파5×4)
+- OUT(전반) 파: 보통 36, IN(후반) 파: 보통 36
+
+[출력 형식] 반드시 아래 JSON만 반환 (다른 텍스트 없이):
 [{"hole":1,"par":4,"score":5},{"hole":2,"par":3,"score":3},...]
-홀 번호 순서대로, 확인 불가 홀은 par:4, score:4로 채워주세요.`
+
+- hole: 1~18 순서
+- par: 해당 홀 파 (3, 4, 5 중 하나)
+- score: 실제 타수 (양의 정수)
+- OUT은 1~9홀, IN은 10~18홀
+- 확인 불가 홀은 par:4, score:4로 채움
+- 총 스코어가 보이면 계산 결과와 맞는지 검증
+
+추가로 골프장 이름과 날짜가 보이면 맨 앞에 아래처럼 포함:
+{"course":"골프장명","date":"YYYY-MM-DD","scores":[...]}
+보이지 않으면 scores 배열만 반환`
 
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
@@ -183,17 +204,34 @@ async function onPhoto(e) {
 
     const json = await res.json()
     const text = json.choices?.[0]?.message?.content || ''
-    const match = text.match(/\[[\s\S]*\]/)
-    if (!match) throw new Error('스코어 데이터를 읽지 못했습니다.')
+    // 객체 형식 {"course":...,"scores":[...]} 또는 배열 형식 [...] 모두 처리
+    let scoreArr = []
+    const objMatch = text.match(/\{[\s\S]*"scores"[\s\S]*\}/)
+    const arrMatch = text.match(/\[[\s\S]*\]/)
 
-    const parsed = JSON.parse(match[0])
-    parsed.forEach((h, i) => {
+    if (objMatch) {
+      const obj = JSON.parse(objMatch[0])
+      scoreArr = obj.scores || []
+      if (obj.course && !form.value.course_name) form.value.course_name = obj.course
+      if (obj.date) {
+        const d = new Date(obj.date)
+        if (!isNaN(d)) form.value.played_at = d.toISOString().split('T')[0]
+      }
+    } else if (arrMatch) {
+      scoreArr = JSON.parse(arrMatch[0])
+    } else {
+      throw new Error('스코어 데이터를 읽지 못했습니다.')
+    }
+
+    if (!scoreArr.length) throw new Error('홀 데이터가 없습니다.')
+
+    scoreArr.forEach((h, i) => {
       if (i < 18) {
         scores.value[i].par = h.par || 4
         scores.value[i].score = h.score || 4
       }
     })
-    form.value.holes = parsed.length <= 9 ? 9 : 18
+    form.value.holes = scoreArr.length <= 9 ? 9 : 18
 
   } catch (err) {
     scanError.value = '자동 인식 실패: ' + err.message + '\n수동으로 입력해주세요.'
