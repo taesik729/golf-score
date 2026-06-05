@@ -9,30 +9,17 @@
     </header>
 
     <div class="main-content" style="padding-top:76px">
-      <!-- 사진 자동 입력 -->
-      <div class="card scan-card">
-        <div class="scan-title">📸 스코어카드 사진으로 자동 입력</div>
-        <p class="scan-desc">스코어카드를 촬영하면 AI가 자동으로 타수를 읽어냅니다</p>
-        <div class="scan-actions">
-          <label class="btn btn-primary" style="cursor:pointer">
-            사진 선택
-            <input type="file" accept="image/*" capture="environment" style="display:none" @change="onPhoto" />
-          </label>
-        </div>
-        <div v-if="scanning" class="scanning-msg">🤖 AI가 스코어카드를 분석 중...</div>
-        <div v-if="scanError" class="error-msg">{{ scanError }}</div>
-      </div>
 
       <!-- 기본 정보 -->
-      <div class="card" style="margin-top:16px">
-        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">기본 정보</h3>
+      <div class="card">
+        <h3 class="sec-title">기본 정보</h3>
         <div class="form-group">
           <label>골프장 이름</label>
-          <input v-model="form.course_name" placeholder="예: 경주 힐링밸리 골프클럽" />
+          <input v-model="form.course_name" placeholder="예: GC 구미" />
         </div>
         <div class="form-row">
           <div class="form-group">
-            <label>라운드 날짜</label>
+            <label>날짜</label>
             <input v-model="form.played_at" type="date" />
           </div>
           <div class="form-group">
@@ -43,147 +30,71 @@
             </select>
           </div>
         </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>총 스코어 <span style="color:#ef4444;font-size:11px">★ 직접 입력</span></label>
-            <input v-model.number="form.total_score_override" type="number" min="1" max="200"
-              placeholder="예: 91" style="font-size:20px;font-weight:800;color:var(--green)" />
-          </div>
-          <div class="form-group">
-            <label>총 파</label>
-            <input v-model.number="form.total_par_override" type="number" min="1" max="100"
-              placeholder="예: 72" />
-          </div>
+        <div class="form-group">
+          <label>총 스코어</label>
+          <input v-model.number="form.total_score" type="number" min="1" max="200"
+            placeholder="예: 91" class="big-input" />
         </div>
         <div class="form-group">
           <label>메모</label>
-          <textarea v-model="form.notes" rows="2" placeholder="날씨, 동반자 등 메모"></textarea>
+          <textarea v-model="form.notes" rows="2" placeholder="날씨, 동반자 등"></textarea>
         </div>
       </div>
 
-      <!-- 홀별 스코어 입력 -->
-      <div class="card" style="margin-top:16px;overflow-x:auto">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
-          <h3 style="font-size:15px;font-weight:700">홀별 스코어</h3>
-          <div class="mode-tabs">
-            <button :class="{ active: inputMode === 'score' }" @click="inputMode = 'score'">타수 입력</button>
-            <button :class="{ active: inputMode === 'diff' }" @click="inputMode = 'diff'">+/- 입력</button>
+      <!-- 홀별 오버파 입력 -->
+      <div class="card" style="margin-top:16px">
+        <h3 class="sec-title">홀별 오버파 (+/-)</h3>
+        <p class="hint">스코어카드에 표시된 숫자 그대로 입력 (보기=1, 파=0, 버디=-1)</p>
+
+        <!-- 1~9홀 -->
+        <div class="hole-section">
+          <div class="hole-header">
+            <span class="hole-label">홀</span>
+            <span v-for="h in 9" :key="h" class="hole-num">{{ h }}</span>
+            <span class="hole-sum">합</span>
+          </div>
+          <div class="hole-row">
+            <span class="hole-label">+/-</span>
+            <input
+              v-for="h in 9" :key="h"
+              v-model.number="diffs[h-1]"
+              type="number" min="-5" max="15"
+              class="diff-input"
+              :class="diffClass(diffs[h-1])"
+            />
+            <span class="hole-sum" :class="sum1 > 0 ? 'over' : sum1 < 0 ? 'birdie' : 'even'">
+              {{ sum1 > 0 ? '+' : '' }}{{ sum1 }}
+            </span>
           </div>
         </div>
-        <p v-if="inputMode === 'diff'" class="mode-desc">스코어카드의 오버파 숫자를 그대로 입력하세요 (이븐=0, 보기=1, 버디=-1)</p>
 
-        <!-- 가로 스코어카드 형식: 위=1~9홀, 아래=10~18홀 -->
-        <div class="scorecard-wrap">
-          <!-- 첫 번째 줄: 1~9홀 -->
-          <table class="scorecard-table">
-            <thead>
-              <tr>
-                <th class="label-cell">홀</th>
-                <th v-for="h in 9" :key="h">{{ h }}</th>
-                <th class="sum-cell">계</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td class="label-cell">파</td>
-                <td v-for="h in 9" :key="'par'+h">
-                  <select v-model="scores[h-1].par" class="par-sel-h">
-                    <option :value="3">3</option>
-                    <option :value="4">4</option>
-                    <option :value="5">5</option>
-                  </select>
-                </td>
-                <td class="sum-cell">{{ scores.slice(0,9).reduce((a,s)=>a+s.par,0) }}</td>
-              </tr>
-              <tr>
-                <td class="label-cell">{{ inputMode==='diff' ? '+/-' : '타수' }}</td>
-                <td v-for="h in 9" :key="'sc'+h">
-                  <input v-if="inputMode==='score'"
-                    v-model.number="scores[h-1].score"
-                    type="number" min="1" max="20"
-                    class="score-input-h" :class="scoreClass(scores[h-1])"
-                  />
-                  <input v-else
-                    v-model.number="diffs[h-1]"
-                    type="number" min="-5" max="15"
-                    class="score-input-h" :class="diffClass(diffs[h-1])"
-                    @change="applyDiff(h-1)"
-                  />
-                </td>
-                <td class="sum-cell score-sum">{{ scores.slice(0,9).reduce((a,s)=>a+s.score,0) }}</td>
-              </tr>
-              <tr>
-                <td class="label-cell">{{ inputMode==='diff' ? '타수' : '+/-' }}</td>
-                <td v-for="h in 9" :key="'dif'+h" class="diff-cell" :class="inputMode==='score' ? scoreClass(scores[h-1]) : ''">
-                  {{ inputMode==='diff' ? scores[h-1].score : scoreDiff(scores[h-1]) }}
-                </td>
-                <td class="sum-cell diff-cell">
-                  {{ (d => (d>0?'+':'')+d)(scores.slice(0,9).reduce((a,s)=>a+(s.score-s.par),0)) }}
-                </td>
-              </tr>
-            </tbody>
-          </table>
-
-          <!-- 두 번째 줄: 10~18홀 (18홀만) -->
-          <template v-if="form.holes === 18">
-            <table class="scorecard-table" style="margin-top:12px">
-              <thead>
-                <tr>
-                  <th class="label-cell">홀</th>
-                  <th v-for="h in 9" :key="h">{{ h+9 }}</th>
-                  <th class="sum-cell">계</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td class="label-cell">파</td>
-                  <td v-for="h in 9" :key="'par2'+h">
-                    <select v-model="scores[h+8].par" class="par-sel-h">
-                      <option :value="3">3</option>
-                      <option :value="4">4</option>
-                      <option :value="5">5</option>
-                    </select>
-                  </td>
-                  <td class="sum-cell">{{ scores.slice(9,18).reduce((a,s)=>a+s.par,0) }}</td>
-                </tr>
-                <tr>
-                  <td class="label-cell">{{ inputMode==='diff' ? '+/-' : '타수' }}</td>
-                  <td v-for="h in 9" :key="'sc2'+h">
-                    <input v-if="inputMode==='score'"
-                      v-model.number="scores[h+8].score"
-                      type="number" min="1" max="20"
-                      class="score-input-h" :class="scoreClass(scores[h+8])"
-                    />
-                    <input v-else
-                      v-model.number="diffs[h+8]"
-                      type="number" min="-5" max="15"
-                      class="score-input-h" :class="diffClass(diffs[h+8])"
-                      @change="applyDiff(h+8)"
-                    />
-                  </td>
-                  <td class="sum-cell score-sum">{{ scores.slice(9,18).reduce((a,s)=>a+s.score,0) }}</td>
-                </tr>
-                <tr>
-                  <td class="label-cell">{{ inputMode==='diff' ? '타수' : '+/-' }}</td>
-                  <td v-for="h in 9" :key="'dif2'+h" class="diff-cell" :class="inputMode==='score' ? scoreClass(scores[h+8]) : ''">
-                    {{ inputMode==='diff' ? scores[h+8].score : scoreDiff(scores[h+8]) }}
-                  </td>
-                  <td class="sum-cell diff-cell">
-                    {{ (d => (d>0?'+':'')+d)(scores.slice(9,18).reduce((a,s)=>a+(s.score-s.par),0)) }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </template>
+        <!-- 10~18홀 (18홀만) -->
+        <div v-if="form.holes === 18" class="hole-section" style="margin-top:12px">
+          <div class="hole-header">
+            <span class="hole-label">홀</span>
+            <span v-for="h in 9" :key="h" class="hole-num">{{ h+9 }}</span>
+            <span class="hole-sum">합</span>
+          </div>
+          <div class="hole-row">
+            <span class="hole-label">+/-</span>
+            <input
+              v-for="h in 9" :key="h"
+              v-model.number="diffs[h+8]"
+              type="number" min="-5" max="15"
+              class="diff-input"
+              :class="diffClass(diffs[h+8])"
+            />
+            <span class="hole-sum" :class="sum2 > 0 ? 'over' : sum2 < 0 ? 'birdie' : 'even'">
+              {{ sum2 > 0 ? '+' : '' }}{{ sum2 }}
+            </span>
+          </div>
         </div>
 
         <!-- 합계 -->
-        <div class="total-row">
-          <span>총계</span>
-          <span>파 {{ form.total_par_override || totalPar }}</span>
-          <span class="total-score">{{ form.total_score_override || totalScore }}타</span>
-          <span class="diff" :class="finalDiff > 0 ? 'over' : finalDiff < 0 ? 'under' : 'even'">
-            {{ finalDiff > 0 ? '+' : '' }}{{ finalDiff }}
+        <div class="total-bar">
+          <span>총 오버파</span>
+          <span :class="totalDiff > 0 ? 'over' : totalDiff < 0 ? 'birdie' : 'even'" style="font-size:20px;font-weight:800">
+            {{ totalDiff > 0 ? '+' : '' }}{{ totalDiff }}
           </span>
         </div>
       </div>
@@ -197,7 +108,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '../supabase/client'
 import { useAuthStore } from '../stores/auth'
@@ -206,14 +117,14 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const today = new Date().toISOString().split('T')[0]
-const form = ref({ course_name: '', played_at: today, holes: 18, notes: '', total_score_override: null, total_par_override: null })
-const inputMode = ref('score') // 'score' | 'diff'
-const startWith = ref('OUT')  // 'OUT' | 'IN'
-const diffs = ref(Array(18).fill(0)) // +/- 입력값
+const form = ref({ course_name: '', played_at: today, holes: 18, notes: '', total_score: null })
 
-function applyDiff(idx) {
-  scores.value[idx].score = scores.value[idx].par + (diffs.value[idx] || 0)
-}
+// 18홀 +/- 입력값 (0 = 파)
+const diffs = ref(Array(18).fill(0))
+
+const sum1 = computed(() => diffs.value.slice(0, 9).reduce((a, d) => a + (d || 0), 0))
+const sum2 = computed(() => diffs.value.slice(9, 18).reduce((a, d) => a + (d || 0), 0))
+const totalDiff = computed(() => form.value.holes === 18 ? sum1.value + sum2.value : sum1.value)
 
 function diffClass(d) {
   if (d <= -2) return 'eagle'
@@ -223,173 +134,12 @@ function diffClass(d) {
   return 'over'
 }
 
-const scanning = ref(false)
-const scanError = ref('')
 const saving = ref(false)
 const saveError = ref('')
 
-// 홀별 스코어 초기화 (18홀)
-const scores = ref(Array.from({ length: 18 }, (_, i) => ({ hole: i + 1, par: 4, score: 4 })))
-
-// 홀 수 변경 시 유지
-watch(() => form.value.holes, (n) => {
-  if (scores.value.length < n) {
-    for (let i = scores.value.length; i < n; i++) {
-      scores.value.push({ hole: i + 1, par: 4, score: 4 })
-    }
-  }
-})
-
-const totalPar = computed(() => scores.value.slice(0, form.value.holes).reduce((a, s) => a + s.par, 0))
-const totalScore = computed(() => scores.value.slice(0, form.value.holes).reduce((a, s) => a + (s.score || 0), 0))
-const finalDiff = computed(() => {
-  const s = form.value.total_score_override || totalScore.value
-  const p = form.value.total_par_override || totalPar.value
-  return s - p
-})
-
-function scoreDiff(s) {
-  const d = s.score - s.par
-  if (!s.score) return ''
-  return d === 0 ? 'E' : d > 0 ? `+${d}` : `${d}`
-}
-
-function scoreClass(s) {
-  const d = s.score - s.par
-  if (!s.score) return ''
-  if (d <= -2) return 'eagle'
-  if (d === -1) return 'birdie'
-  if (d === 0) return 'even'
-  if (d === 1) return 'bogey'
-  return 'over'
-}
-
-// 사진 → Groq Vision 자동 입력
-async function onPhoto(e) {
-  const file = e.target.files[0]
-  if (!file) return
-  scanError.value = ''
-  scanning.value = true
-
-  try {
-    // 이미지 리사이즈 (1024px)
-    const base64 = await resizeImage(file, 1024)
-
-    const prompt = `이 사진은 골프 스코어카드입니다. 아래 규칙에 따라 분석해주세요.
-
-[스코어카드 형식 판별]
-1. 타수 직접 표기형: 각 홀에 실제 타수(예: 3,4,5,6)가 적힌 경우
-2. +/- 오버파 표기형: 각 홀에 파 기준 오버/언더 수치(예: 0,1,2,-1)가 적힌 경우
-   - IN/OUT 행에 0,1,2,3 같은 작은 숫자가 나열된 경우 이 형식일 가능성 높음
-   - 이 경우 파를 추정하여 실제 타수 = 파 + 오버파 수치로 계산
-
-[골프장 파 기본값]
-- 파3홀, 파4홀, 파5홀이 섞여있음
-- 18홀 전체 파는 보통 72 (파3×4, 파4×10, 파5×4)
-- OUT(전반) 파: 보통 36, IN(후반) 파: 보통 36
-
-[출력 형식] 반드시 아래 JSON만 반환 (다른 텍스트 없이):
-[{"hole":1,"par":4,"score":5},{"hole":2,"par":3,"score":3},...]
-
-- hole: 1~18 순서
-- par: 해당 홀 파 (3, 4, 5 중 하나)
-- score: 실제 타수 (양의 정수)
-- OUT은 1~9홀, IN은 10~18홀
-- 확인 불가 홀은 par:4, score:4로 채움
-- 총 스코어가 보이면 계산 결과와 맞는지 검증
-
-추가로 골프장 이름과 날짜가 보이면 맨 앞에 아래처럼 포함:
-{"course":"골프장명","date":"YYYY-MM-DD","scores":[...]}
-보이지 않으면 scores 배열만 반환`
-
-    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${import.meta.env.VITE_GROQ_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
-        messages: [{
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: base64 } }
-          ]
-        }],
-        temperature: 0.1,
-        max_tokens: 1000
-      })
-    })
-
-    const json = await res.json()
-    const text = json.choices?.[0]?.message?.content || ''
-    // 객체 형식 {"course":...,"scores":[...]} 또는 배열 형식 [...] 모두 처리
-    let scoreArr = []
-    const objMatch = text.match(/\{[\s\S]*"scores"[\s\S]*\}/)
-    const arrMatch = text.match(/\[[\s\S]*\]/)
-
-    if (objMatch) {
-      const obj = JSON.parse(objMatch[0])
-      scoreArr = obj.scores || []
-      if (obj.course && !form.value.course_name) form.value.course_name = obj.course
-      if (obj.date) {
-        const d = new Date(obj.date)
-        if (!isNaN(d)) form.value.played_at = d.toISOString().split('T')[0]
-      }
-    } else if (arrMatch) {
-      scoreArr = JSON.parse(arrMatch[0])
-    } else {
-      throw new Error('스코어 데이터를 읽지 못했습니다.')
-    }
-
-    if (!scoreArr.length) throw new Error('홀 데이터가 없습니다.')
-
-    scoreArr.forEach((h, i) => {
-      if (i < 18) {
-        scores.value[i].par = h.par || 4
-        scores.value[i].score = h.score || 4
-      }
-    })
-    form.value.holes = scoreArr.length <= 9 ? 9 : 18
-
-  } catch (err) {
-    scanError.value = '자동 인식 실패: ' + err.message + '\n수동으로 입력해주세요.'
-  } finally {
-    scanning.value = false
-  }
-}
-
-function resizeImage(file, maxSize) {
-  return new Promise((resolve) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      const canvas = document.createElement('canvas')
-      let w = img.width, h = img.height
-      if (w > maxSize || h > maxSize) {
-        if (w > h) { h = h * maxSize / w; w = maxSize }
-        else { w = w * maxSize / h; h = maxSize }
-      }
-      canvas.width = w; canvas.height = h
-      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
-      resolve(canvas.toDataURL('image/jpeg', 0.85))
-      URL.revokeObjectURL(url)
-    }
-    img.src = url
-  })
-}
-
-// IN/OUT 스왑 (전반 1~9 ↔ 후반 10~18)
-function swapInOut() {
-  const front = scores.value.slice(0, 9).map(s => ({ ...s }))
-  const back = scores.value.slice(9, 18).map(s => ({ ...s }))
-  back.forEach((s, i) => { scores.value[i] = { ...s, hole: i + 1 } })
-  front.forEach((s, i) => { scores.value[i + 9] = { ...s, hole: i + 10 } })
-}
-
 async function save() {
   if (!form.value.course_name) { saveError.value = '골프장 이름을 입력하세요.'; return }
+  if (!form.value.total_score) { saveError.value = '총 스코어를 입력하세요.'; return }
   saving.value = true
   saveError.value = ''
   try {
@@ -400,18 +150,19 @@ async function save() {
         course_name: form.value.course_name,
         played_at: form.value.played_at,
         holes: form.value.holes,
-        total_score: form.value.total_score_override || totalScore.value,
+        total_score: form.value.total_score,
         notes: form.value.notes
       })
       .select().single()
-
     if (e1) throw e1
 
-    const scoreRows = scores.value.slice(0, form.value.holes).map(s => ({
+    // 홀별 저장 (+/- 기준, par=4 기본값으로 score 계산)
+    const count = form.value.holes
+    const scoreRows = Array.from({ length: count }, (_, i) => ({
       round_id: round.id,
-      hole: s.hole,
-      par: s.par,
-      score: s.score
+      hole: i + 1,
+      par: 4,
+      score: 4 + (diffs.value[i] || 0)
     }))
     const { error: e2 } = await supabase.from('golf_scores').insert(scoreRows)
     if (e2) throw e2
@@ -437,191 +188,73 @@ async function save() {
 }
 .btn-back { border: none; background: none; font-size: 15px; cursor: pointer; color: var(--green); font-weight: 600; }
 
-/* 가로 스코어카드 */
-.scorecard-wrap { overflow-x: auto; }
-.scorecard-table {
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 480px;
-  font-size: 13px;
-}
-.scorecard-table th {
-  background: var(--green);
-  color: white;
-  padding: 6px 4px;
-  text-align: center;
-  font-weight: 700;
-  min-width: 36px;
-}
-.scorecard-table td {
-  padding: 4px 2px;
-  text-align: center;
-  border-bottom: 1px solid var(--border);
-}
-.scorecard-table tr:nth-child(even) td { background: var(--bg); }
-.label-cell {
-  font-weight: 700;
-  color: var(--text-muted);
-  font-size: 12px;
-  white-space: nowrap;
-  padding: 4px 8px !important;
-  text-align: left !important;
-  background: var(--bg) !important;
-}
-.sum-cell {
-  font-weight: 700;
-  background: #f0fdf4 !important;
-  color: var(--green);
-}
-.score-sum { font-size: 16px; }
-.diff-cell { font-size: 12px; font-weight: 700; }
-
-.par-sel-h {
-  width: 36px;
-  padding: 3px 2px;
-  font-size: 13px;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  text-align: center;
-}
-.score-input-h {
-  width: 36px;
-  padding: 4px 2px;
-  font-size: 14px;
-  font-weight: 700;
-  border: 1.5px solid var(--border);
-  border-radius: 4px;
-  text-align: center;
-}
-.score-input-h.eagle { border-color: #7c3aed; color: #7c3aed; }
-.score-input-h.birdie { border-color: #2563eb; color: #2563eb; }
-.score-input-h.bogey { border-color: #ea580c; }
-.score-input-h.over { border-color: #dc2626; }
-
-.start-tabs {
-  display: flex;
-  gap: 8px;
-}
-.start-tabs button {
-  flex: 1;
-  padding: 8px;
-  border-radius: 8px;
-  border: 1.5px solid var(--border);
-  background: white;
-  font-weight: 600;
-  font-size: 13px;
-  cursor: pointer;
-  color: var(--text-muted);
-}
-.start-tabs button.active {
-  background: var(--green);
-  color: white;
-  border-color: var(--green);
-}
-
-.mode-tabs {
-  display: flex;
-  background: var(--bg);
-  border-radius: 8px;
-  padding: 3px;
-}
-.mode-tabs button {
-  border: none;
-  background: transparent;
-  padding: 5px 12px;
-  border-radius: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--text-muted);
-}
-.mode-tabs button.active {
-  background: var(--green);
-  color: white;
-}
-.mode-desc {
-  font-size: 12px;
-  color: var(--green);
-  background: var(--green-bg);
-  padding: 6px 10px;
-  border-radius: 6px;
-  margin-bottom: 12px;
-}
-
-.btn-swap {
-  border: 1.5px solid var(--green);
-  background: white;
-  color: var(--green);
-  padding: 6px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 600;
-}
-.btn-swap:hover { background: var(--green-bg); }
-
-.half-label {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--green);
-  margin-bottom: 8px;
-  padding: 4px 8px;
-  background: var(--green-bg);
-  border-radius: 6px;
-}
-.half-subtotal {
-  display: grid;
-  grid-template-columns: 36px 60px 72px 48px;
-  gap: 8px;
-  padding: 8px 4px;
-  border-top: 1px solid var(--border);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-  margin-bottom: 4px;
-}
-
-.scan-card { background: linear-gradient(135deg, #d8f3dc, #b7e4c7); border: none; }
-.scan-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
-.scan-desc { font-size: 13px; color: #2d6a4f; margin-bottom: 14px; }
-.scan-actions { display: flex; gap: 10px; }
-.scanning-msg { margin-top: 12px; font-size: 14px; color: var(--green); font-weight: 600; }
-
+.sec-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.big-input { font-size: 24px; font-weight: 800; color: var(--green); text-align: center; }
+.hint { font-size: 12px; color: var(--text-muted); margin-bottom: 14px; background: var(--bg); padding: 6px 10px; border-radius: 6px; }
 
-.score-grid { display: flex; flex-direction: column; gap: 6px; }
-.score-header {
-  display: grid; grid-template-columns: 36px 60px 72px 48px;
-  gap: 8px; font-size: 12px; font-weight: 700; color: var(--text-muted);
-  padding: 0 4px;
+/* 홀별 입력 */
+.hole-section { overflow-x: auto; }
+.hole-header, .hole-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 480px;
 }
-.score-row {
-  display: grid; grid-template-columns: 36px 60px 72px 48px;
-  gap: 8px; align-items: center; padding: 4px;
+.hole-header {
+  margin-bottom: 6px;
+}
+.hole-label {
+  width: 32px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.hole-num {
+  flex: 1;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: white;
+  background: var(--green);
+  border-radius: 4px;
+  padding: 4px 0;
+}
+.hole-sum {
+  width: 36px;
+  text-align: center;
+  font-weight: 800;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.diff-input {
+  flex: 1;
+  min-width: 0;
+  padding: 6px 2px;
+  font-size: 16px;
+  font-weight: 800;
+  border: 2px solid var(--border);
   border-radius: 6px;
+  text-align: center;
+  background: white;
 }
-.score-row:nth-child(even) { background: var(--bg); }
-.hole-num { font-weight: 700; font-size: 14px; text-align: center; }
-.par-sel { padding: 6px 4px; font-size: 14px; }
-.score-input { padding: 6px 8px; font-size: 16px; font-weight: 700; text-align: center; }
-.diff { font-size: 13px; font-weight: 700; text-align: center; }
+.diff-input:focus { outline: none; border-color: var(--green); }
 
-.total-row {
-  display: grid; grid-template-columns: 36px 60px 72px 48px;
-  gap: 8px; align-items: center; padding: 12px 4px 4px;
-  border-top: 2px solid var(--border); margin-top: 8px;
+.total-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 2px solid var(--border);
   font-weight: 700;
 }
-.total-score { font-size: 18px; font-weight: 800; color: var(--green); text-align: center; }
 
-/* 스코어 색상 */
-.eagle { color: #7c3aed; }
-.birdie { color: #2563eb; }
+/* 색상 */
+.eagle { color: #7c3aed; border-color: #7c3aed !important; }
+.birdie { color: #2563eb; border-color: #2563eb !important; }
 .even { color: var(--text-muted); }
-.bogey { color: #ea580c; }
-.over { color: #dc2626; }
-.score-input.eagle { border-color: #7c3aed; color: #7c3aed; }
-.score-input.birdie { border-color: #2563eb; color: #2563eb; }
-.score-input.bogey { border-color: #ea580c; }
-.score-input.over { border-color: #dc2626; }
+.bogey { color: #ea580c; border-color: #ea580c !important; }
+.over { color: #dc2626; border-color: #dc2626 !important; }
 </style>
