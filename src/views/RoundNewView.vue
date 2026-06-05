@@ -43,7 +43,17 @@
             </select>
           </div>
         </div>
-        <div v-if="false">
+        <div class="form-row">
+          <div class="form-group">
+            <label>총 스코어 <span style="color:#ef4444;font-size:11px">★ 직접 입력</span></label>
+            <input v-model.number="form.total_score_override" type="number" min="1" max="200"
+              placeholder="예: 91" style="font-size:20px;font-weight:800;color:var(--green)" />
+          </div>
+          <div class="form-group">
+            <label>총 파</label>
+            <input v-model.number="form.total_par_override" type="number" min="1" max="100"
+              placeholder="예: 72" />
+          </div>
         </div>
         <div class="form-group">
           <label>메모</label>
@@ -170,10 +180,10 @@
         <!-- 합계 -->
         <div class="total-row">
           <span>총계</span>
-          <span>파 {{ totalPar }}</span>
-          <span class="total-score">{{ totalScore }}타</span>
-          <span class="diff" :class="totalScore - totalPar > 0 ? 'over' : totalScore - totalPar < 0 ? 'under' : 'even'">
-            {{ totalScore - totalPar > 0 ? '+' : '' }}{{ totalScore - totalPar }}
+          <span>파 {{ form.total_par_override || totalPar }}</span>
+          <span class="total-score">{{ form.total_score_override || totalScore }}타</span>
+          <span class="diff" :class="finalDiff > 0 ? 'over' : finalDiff < 0 ? 'under' : 'even'">
+            {{ finalDiff > 0 ? '+' : '' }}{{ finalDiff }}
           </span>
         </div>
       </div>
@@ -196,7 +206,7 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const today = new Date().toISOString().split('T')[0]
-const form = ref({ course_name: '', played_at: today, holes: 18, notes: '' })
+const form = ref({ course_name: '', played_at: today, holes: 18, notes: '', total_score_override: null, total_par_override: null })
 const inputMode = ref('score') // 'score' | 'diff'
 const startWith = ref('OUT')  // 'OUT' | 'IN'
 const diffs = ref(Array(18).fill(0)) // +/- 입력값
@@ -232,6 +242,11 @@ watch(() => form.value.holes, (n) => {
 
 const totalPar = computed(() => scores.value.slice(0, form.value.holes).reduce((a, s) => a + s.par, 0))
 const totalScore = computed(() => scores.value.slice(0, form.value.holes).reduce((a, s) => a + (s.score || 0), 0))
+const finalDiff = computed(() => {
+  const s = form.value.total_score_override || totalScore.value
+  const p = form.value.total_par_override || totalPar.value
+  return s - p
+})
 
 function scoreDiff(s) {
   const d = s.score - s.par
@@ -385,7 +400,7 @@ async function save() {
         course_name: form.value.course_name,
         played_at: form.value.played_at,
         holes: form.value.holes,
-        total_score: totalScore.value,
+        total_score: form.value.total_score_override || totalScore.value,
         notes: form.value.notes
       })
       .select().single()
