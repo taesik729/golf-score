@@ -30,13 +30,21 @@
       <!-- 기본 정보 -->
       <div class="card" style="margin-top:16px">
         <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">기본 정보</h3>
-        <div class="form-group">
-          <label>골프장 이름</label>
-          <input v-model="form.course_name" placeholder="예: 경주 힐링밸리 골프클럽" />
+        <!-- 골프장 이름 + 총 파 -->
+        <div class="form-row" style="grid-template-columns: 1fr 80px">
+          <div class="form-group">
+            <label>골프장 이름</label>
+            <input v-model="form.course_name" placeholder="예: GC 구미" />
+          </div>
+          <div class="form-group">
+            <label>총 파</label>
+            <input v-model.number="form.total_par" type="number" min="1" max="100" style="text-align:center;font-weight:700" />
+          </div>
         </div>
+        <!-- 날짜 + 홀 수 -->
         <div class="form-row">
           <div class="form-group">
-            <label>라운드 날짜</label>
+            <label>날짜</label>
             <input v-model="form.played_at" type="date" />
           </div>
           <div class="form-group">
@@ -45,12 +53,6 @@
               <option :value="9">9홀</option>
               <option :value="18">18홀</option>
             </select>
-          </div>
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>총 파</label>
-            <input v-model.number="form.total_par" type="number" min="1" max="100" />
           </div>
         </div>
         <div class="form-group">
