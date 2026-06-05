@@ -51,32 +51,77 @@
 
       <!-- 홀별 스코어 입력 -->
       <div class="card" style="margin-top:16px">
-        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">홀별 스코어</h3>
-        <div class="score-grid">
-          <div class="score-header">
-            <span>홀</span>
-            <span>파</span>
-            <span>타수</span>
-            <span>+/-</span>
-          </div>
-          <div v-for="h in form.holes" :key="h" class="score-row">
-            <span class="hole-num">{{ h }}</span>
-            <select v-model="scores[h-1].par" class="par-sel">
-              <option :value="3">3</option>
-              <option :value="4">4</option>
-              <option :value="5">5</option>
-            </select>
-            <input
-              v-model.number="scores[h-1].score"
-              type="number" min="1" max="20"
-              class="score-input"
-              :class="scoreClass(scores[h-1])"
-            />
-            <span class="diff" :class="scoreClass(scores[h-1])">
-              {{ scoreDiff(scores[h-1]) }}
-            </span>
-          </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <h3 style="font-size:15px;font-weight:700">홀별 스코어</h3>
+          <button v-if="form.holes === 18" class="btn-swap" @click="swapInOut" title="IN/OUT 순서 바꾸기">
+            🔄 IN↔OUT 스왑
+          </button>
         </div>
+
+        <!-- 18홀: 전반/후반 구분 표시 -->
+        <template v-if="form.holes === 18">
+          <div class="half-label">전반 OUT (1~9홀)</div>
+          <div class="score-grid">
+            <div class="score-header">
+              <span>홀</span><span>파</span><span>타수</span><span>+/-</span>
+            </div>
+            <div v-for="h in 9" :key="'out'+h" class="score-row">
+              <span class="hole-num">{{ h }}</span>
+              <select v-model="scores[h-1].par" class="par-sel">
+                <option :value="3">3</option><option :value="4">4</option><option :value="5">5</option>
+              </select>
+              <input v-model.number="scores[h-1].score" type="number" min="1" max="20"
+                class="score-input" :class="scoreClass(scores[h-1])" />
+              <span class="diff" :class="scoreClass(scores[h-1])">{{ scoreDiff(scores[h-1]) }}</span>
+            </div>
+          </div>
+          <div class="half-subtotal">
+            <span>전반 소계</span>
+            <span>파 {{ scores.slice(0,9).reduce((a,s)=>a+s.par,0) }}</span>
+            <span class="total-score">{{ scores.slice(0,9).reduce((a,s)=>a+s.score,0) }}타</span>
+            <span></span>
+          </div>
+
+          <div class="half-label" style="margin-top:12px">후반 IN (10~18홀)</div>
+          <div class="score-grid">
+            <div class="score-header">
+              <span>홀</span><span>파</span><span>타수</span><span>+/-</span>
+            </div>
+            <div v-for="h in 9" :key="'in'+h" class="score-row">
+              <span class="hole-num">{{ h+9 }}</span>
+              <select v-model="scores[h+8].par" class="par-sel">
+                <option :value="3">3</option><option :value="4">4</option><option :value="5">5</option>
+              </select>
+              <input v-model.number="scores[h+8].score" type="number" min="1" max="20"
+                class="score-input" :class="scoreClass(scores[h+8])" />
+              <span class="diff" :class="scoreClass(scores[h+8])">{{ scoreDiff(scores[h+8]) }}</span>
+            </div>
+          </div>
+          <div class="half-subtotal">
+            <span>후반 소계</span>
+            <span>파 {{ scores.slice(9,18).reduce((a,s)=>a+s.par,0) }}</span>
+            <span class="total-score">{{ scores.slice(9,18).reduce((a,s)=>a+s.score,0) }}타</span>
+            <span></span>
+          </div>
+        </template>
+
+        <!-- 9홀 -->
+        <template v-else>
+          <div class="score-grid">
+            <div class="score-header">
+              <span>홀</span><span>파</span><span>타수</span><span>+/-</span>
+            </div>
+            <div v-for="h in form.holes" :key="h" class="score-row">
+              <span class="hole-num">{{ h }}</span>
+              <select v-model="scores[h-1].par" class="par-sel">
+                <option :value="3">3</option><option :value="4">4</option><option :value="5">5</option>
+              </select>
+              <input v-model.number="scores[h-1].score" type="number" min="1" max="20"
+                class="score-input" :class="scoreClass(scores[h-1])" />
+              <span class="diff" :class="scoreClass(scores[h-1])">{{ scoreDiff(scores[h-1]) }}</span>
+            </div>
+          </div>
+        </template>
 
         <!-- 합계 -->
         <div class="total-row">
@@ -260,6 +305,14 @@ function resizeImage(file, maxSize) {
   })
 }
 
+// IN/OUT 스왑 (전반 1~9 ↔ 후반 10~18)
+function swapInOut() {
+  const front = scores.value.slice(0, 9).map(s => ({ ...s }))
+  const back = scores.value.slice(9, 18).map(s => ({ ...s }))
+  back.forEach((s, i) => { scores.value[i] = { ...s, hole: i + 1 } })
+  front.forEach((s, i) => { scores.value[i + 9] = { ...s, hole: i + 10 } })
+}
+
 async function save() {
   if (!form.value.course_name) { saveError.value = '골프장 이름을 입력하세요.'; return }
   saving.value = true
@@ -308,6 +361,39 @@ async function save() {
   height: 100%; display: flex; align-items: center; justify-content: space-between;
 }
 .btn-back { border: none; background: none; font-size: 15px; cursor: pointer; color: var(--green); font-weight: 600; }
+
+.btn-swap {
+  border: 1.5px solid var(--green);
+  background: white;
+  color: var(--green);
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+.btn-swap:hover { background: var(--green-bg); }
+
+.half-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--green);
+  margin-bottom: 8px;
+  padding: 4px 8px;
+  background: var(--green-bg);
+  border-radius: 6px;
+}
+.half-subtotal {
+  display: grid;
+  grid-template-columns: 36px 60px 72px 48px;
+  gap: 8px;
+  padding: 8px 4px;
+  border-top: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
 
 .scan-card { background: linear-gradient(135deg, #d8f3dc, #b7e4c7); border: none; }
 .scan-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
