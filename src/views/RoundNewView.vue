@@ -47,7 +47,6 @@
           <div class="form-group">
             <label>총 파</label>
             <input v-model.number="form.total_par" type="number" min="1" max="100" />
-        </div>
           </div>
         </div>
         <div class="form-group">
