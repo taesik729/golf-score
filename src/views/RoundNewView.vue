@@ -43,7 +43,12 @@
             </select>
           </div>
         </div>
-        <div v-if="false">
+        <div class="form-row">
+          <div class="form-group">
+            <label>총 파</label>
+            <input v-model.number="form.total_par" type="number" min="1" max="100" />
+        </div>
+          </div>
         </div>
         <div class="form-group">
           <label>메모</label>
@@ -170,10 +175,10 @@
         <!-- 합계 -->
         <div class="total-row">
           <span>총계</span>
-          <span>파 {{ totalPar }}</span>
-          <span class="total-score">{{ totalScore }}타</span>
-          <span class="diff" :class="totalScore - totalPar > 0 ? 'over' : totalScore - totalPar < 0 ? 'under' : 'even'">
-            {{ totalScore - totalPar > 0 ? '+' : '' }}{{ totalScore - totalPar }}
+          <span>파 {{ form.total_par }}</span>
+          <span class="total-score">{{ form.total_par + totalDiff }}타</span>
+          <span class="diff" :class="totalDiff > 0 ? 'over' : totalDiff < 0 ? 'under' : 'even'">
+            {{ totalDiff > 0 ? '+' : '' }}{{ totalDiff }}
           </span>
         </div>
       </div>
@@ -196,7 +201,12 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const today = new Date().toISOString().split('T')[0]
-const form = ref({ course_name: '', played_at: today, holes: 18, notes: '' })
+const form = ref({ course_name: '', played_at: today, holes: 18, notes: '', total_par: 72 })
+
+// 홀 수 변경 시 total_par 기본값 자동 조정
+watch(() => form.value.holes, (n) => {
+  form.value.total_par = n === 18 ? 72 : 36
+})
 const inputMode = ref('score') // 'score' | 'diff'
 const startWith = ref('OUT')  // 'OUT' | 'IN'
 const diffs = ref(Array(18).fill(0)) // +/- 입력값
@@ -232,6 +242,7 @@ watch(() => form.value.holes, (n) => {
 
 const totalPar = computed(() => scores.value.slice(0, form.value.holes).reduce((a, s) => a + s.par, 0))
 const totalScore = computed(() => scores.value.slice(0, form.value.holes).reduce((a, s) => a + (s.score || 0), 0))
+const totalDiff = computed(() => diffs.value.slice(0, form.value.holes).reduce((a, d) => a + (d || 0), 0))
 
 function scoreDiff(s) {
   const d = s.score - s.par
@@ -369,7 +380,9 @@ async function save() {
         course_name: form.value.course_name,
         played_at: form.value.played_at,
         holes: form.value.holes,
-        total_score: totalScore.value,
+        total_score: inputMode.value === 'diff'
+          ? form.value.total_par + totalDiff.value
+          : totalScore.value,
         notes: form.value.notes
       })
       .select().single()
