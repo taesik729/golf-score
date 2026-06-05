@@ -51,7 +51,14 @@
 
       <!-- 홀별 스코어 입력 -->
       <div class="card" style="margin-top:16px;overflow-x:auto">
-        <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">홀별 스코어</h3>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+          <h3 style="font-size:15px;font-weight:700">홀별 스코어</h3>
+          <div class="mode-tabs">
+            <button :class="{ active: inputMode === 'score' }" @click="inputMode = 'score'">타수 입력</button>
+            <button :class="{ active: inputMode === 'diff' }" @click="inputMode = 'diff'">+/- 입력</button>
+          </div>
+        </div>
+        <p v-if="inputMode === 'diff'" class="mode-desc">스코어카드의 오버파 숫자를 그대로 입력하세요 (이븐=0, 보기=1, 버디=-1)</p>
 
         <!-- 가로 스코어카드 형식 -->
         <div class="scorecard-wrap">
@@ -77,21 +84,28 @@
                 <td class="sum-cell">{{ scores.slice(0,9).reduce((a,s)=>a+s.par,0) }}</td>
               </tr>
               <tr>
-                <td class="label-cell">타수</td>
+                <td class="label-cell">{{ inputMode==='diff' ? '+/-' : '타수' }}</td>
                 <td v-for="h in 9" :key="'sc'+h">
-                  <input
+                  <input v-if="inputMode==='score'"
                     v-model.number="scores[h-1].score"
                     type="number" min="1" max="20"
                     class="score-input-h"
                     :class="scoreClass(scores[h-1])"
                   />
+                  <input v-else
+                    v-model.number="diffs[h-1]"
+                    type="number" min="-5" max="15"
+                    class="score-input-h"
+                    :class="diffClass(diffs[h-1])"
+                    @change="applyDiff(h-1)"
+                  />
                 </td>
                 <td class="sum-cell score-sum">{{ scores.slice(0,9).reduce((a,s)=>a+s.score,0) }}</td>
               </tr>
               <tr>
-                <td class="label-cell">+/-</td>
+                <td class="label-cell">{{ inputMode==='diff' ? '타수' : '+/-' }}</td>
                 <td v-for="h in 9" :key="'diff'+h" class="diff-cell" :class="scoreClass(scores[h-1])">
-                  {{ scoreDiff(scores[h-1]) }}
+                  {{ inputMode==='diff' ? scores[h-1].score : scoreDiff(scores[h-1]) }}
                 </td>
                 <td class="sum-cell diff-cell" :class="scores.slice(0,9).reduce((a,s)=>a+(s.score-s.par),0) > 0 ? 'over' : scores.slice(0,9).reduce((a,s)=>a+(s.score-s.par),0) < 0 ? 'birdie' : 'even'">
                   {{ scores.slice(0,9).reduce((a,s)=>a+(s.score-s.par),0) > 0 ? '+' : '' }}{{ scores.slice(0,9).reduce((a,s)=>a+(s.score-s.par),0) }}
@@ -123,21 +137,28 @@
                   <td class="sum-cell">{{ scores.slice(9,18).reduce((a,s)=>a+s.par,0) }}</td>
                 </tr>
                 <tr>
-                  <td class="label-cell">타수</td>
+                  <td class="label-cell">{{ inputMode==='diff' ? '+/-' : '타수' }}</td>
                   <td v-for="h in 9" :key="'sc2'+h">
-                    <input
+                    <input v-if="inputMode==='score'"
                       v-model.number="scores[h+8].score"
                       type="number" min="1" max="20"
                       class="score-input-h"
                       :class="scoreClass(scores[h+8])"
                     />
+                    <input v-else
+                      v-model.number="diffs[h+8]"
+                      type="number" min="-5" max="15"
+                      class="score-input-h"
+                      :class="diffClass(diffs[h+8])"
+                      @change="applyDiff(h+8)"
+                    />
                   </td>
                   <td class="sum-cell score-sum">{{ scores.slice(9,18).reduce((a,s)=>a+s.score,0) }}</td>
                 </tr>
                 <tr>
-                  <td class="label-cell">+/-</td>
+                  <td class="label-cell">{{ inputMode==='diff' ? '타수' : '+/-' }}</td>
                   <td v-for="h in 9" :key="'diff2'+h" class="diff-cell" :class="scoreClass(scores[h+8])">
-                    {{ scoreDiff(scores[h+8]) }}
+                    {{ inputMode==='diff' ? scores[h+8].score : scoreDiff(scores[h+8]) }}
                   </td>
                   <td class="sum-cell diff-cell" :class="scores.slice(9,18).reduce((a,s)=>a+(s.score-s.par),0) > 0 ? 'over' : scores.slice(9,18).reduce((a,s)=>a+(s.score-s.par),0) < 0 ? 'birdie' : 'even'">
                     {{ scores.slice(9,18).reduce((a,s)=>a+(s.score-s.par),0) > 0 ? '+' : '' }}{{ scores.slice(9,18).reduce((a,s)=>a+(s.score-s.par),0) }}
@@ -178,6 +199,21 @@ const auth = useAuthStore()
 
 const today = new Date().toISOString().split('T')[0]
 const form = ref({ course_name: '', played_at: today, holes: 18, notes: '' })
+const inputMode = ref('score') // 'score' | 'diff'
+const diffs = ref(Array(18).fill(0)) // +/- 입력값
+
+function applyDiff(idx) {
+  scores.value[idx].score = scores.value[idx].par + (diffs.value[idx] || 0)
+}
+
+function diffClass(d) {
+  if (d <= -2) return 'eagle'
+  if (d === -1) return 'birdie'
+  if (d === 0) return 'even'
+  if (d === 1) return 'bogey'
+  return 'over'
+}
+
 const scanning = ref(false)
 const scanError = ref('')
 const saving = ref(false)
@@ -447,6 +483,35 @@ async function save() {
 .score-input-h.birdie { border-color: #2563eb; color: #2563eb; }
 .score-input-h.bogey { border-color: #ea580c; }
 .score-input-h.over { border-color: #dc2626; }
+
+.mode-tabs {
+  display: flex;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 3px;
+}
+.mode-tabs button {
+  border: none;
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-muted);
+}
+.mode-tabs button.active {
+  background: var(--green);
+  color: white;
+}
+.mode-desc {
+  font-size: 12px;
+  color: var(--green);
+  background: var(--green-bg);
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 12px;
+}
 
 .btn-swap {
   border: 1.5px solid var(--green);
