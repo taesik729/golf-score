@@ -80,17 +80,6 @@
             </thead>
             <tbody>
               <tr>
-                <td class="label-cell">파</td>
-                <td v-for="h in 9" :key="'par'+h">
-                  <select v-model="scores[h-1].par" class="par-sel-h">
-                    <option :value="3">3</option>
-                    <option :value="4">4</option>
-                    <option :value="5">5</option>
-                  </select>
-                </td>
-                <td class="sum-cell">{{ scores.slice(0,9).reduce((a,s)=>a+s.par,0) }}</td>
-              </tr>
-              <tr>
                 <td class="label-cell">{{ inputMode==='diff' ? '+/-' : '타수' }}</td>
                 <td v-for="h in 9" :key="'sc'+h">
                   <input v-if="inputMode==='score'"
@@ -130,17 +119,6 @@
                 </tr>
               </thead>
               <tbody>
-                <tr>
-                  <td class="label-cell">파</td>
-                  <td v-for="h in 9" :key="'par2'+h">
-                    <select v-model="scores[h+8].par" class="par-sel-h">
-                      <option :value="3">3</option>
-                      <option :value="4">4</option>
-                      <option :value="5">5</option>
-                    </select>
-                  </td>
-                  <td class="sum-cell">{{ scores.slice(9,18).reduce((a,s)=>a+s.par,0) }}</td>
-                </tr>
                 <tr>
                   <td class="label-cell">{{ inputMode==='diff' ? '+/-' : '타수' }}</td>
                   <td v-for="h in 9" :key="'sc2'+h">
