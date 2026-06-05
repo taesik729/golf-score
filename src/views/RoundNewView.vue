@@ -16,7 +16,7 @@
         <div class="scan-actions">
           <label class="btn btn-primary" style="cursor:pointer">
             사진 선택
-            <input type="file" accept="image/*" capture="environment" style="display:none" @change="onPhoto" />
+            <input type="file" accept="image/*" style="display:none" @change="onPhoto" />
           </label>
         </div>
         <div v-if="scanning" class="scanning-msg">🤖 AI가 스코어카드를 분석 중...</div>
