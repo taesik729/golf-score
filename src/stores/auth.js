@@ -14,8 +14,13 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function signUp(email, password) {
-    const { error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
+    // 이메일 인증 없이 바로 세션 설정
+    if (data?.session) {
+      user.value = data.session.user
+    }
+    return data
   }
 
   async function signIn(email, password) {

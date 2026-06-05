@@ -52,8 +52,12 @@ async function submit() {
       await auth.signIn(email.value, password.value)
       router.push('/dashboard')
     } else {
-      await auth.signUp(email.value, password.value)
-      successMsg.value = '가입 완료! 이메일 인증 후 로그인하세요.'
+      const data = await auth.signUp(email.value, password.value)
+      if (data?.session) {
+        router.push('/dashboard')
+      } else {
+        successMsg.value = '가입 완료! 로그인해주세요.'
+      }
     }
   } catch (e) {
     errorMsg.value = e.message
