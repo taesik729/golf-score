@@ -31,11 +31,6 @@
           </div>
         </div>
         <div class="form-group">
-          <label>총 스코어</label>
-          <input v-model.number="form.total_score" type="number" min="1" max="200"
-            placeholder="예: 91" class="big-input" />
-        </div>
-        <div class="form-group">
           <label>메모</label>
           <textarea v-model="form.notes" rows="2" placeholder="날씨, 동반자 등"></textarea>
         </div>
@@ -92,10 +87,19 @@
 
         <!-- 합계 -->
         <div class="total-bar">
-          <span>총 오버파</span>
-          <span :class="totalDiff > 0 ? 'over' : totalDiff < 0 ? 'birdie' : 'even'" style="font-size:20px;font-weight:800">
-            {{ totalDiff > 0 ? '+' : '' }}{{ totalDiff }}
-          </span>
+          <div>
+            <div style="font-size:12px;color:var(--text-muted)">파 {{ totalPar }} 기준</div>
+            <div style="font-size:13px;margin-top:2px">
+              오버파
+              <span :class="totalDiff > 0 ? 'over' : totalDiff < 0 ? 'birdie' : 'even'" style="font-weight:800">
+                {{ totalDiff > 0 ? '+' : '' }}{{ totalDiff }}
+              </span>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:13px;color:var(--text-muted)">총 스코어</div>
+            <div style="font-size:32px;font-weight:800;color:var(--green)">{{ finalScore }}타</div>
+          </div>
         </div>
       </div>
 
@@ -117,7 +121,7 @@ const router = useRouter()
 const auth = useAuthStore()
 
 const today = new Date().toISOString().split('T')[0]
-const form = ref({ course_name: '', played_at: today, holes: 18, notes: '', total_score: null })
+const form = ref({ course_name: '', played_at: today, holes: 18, notes: '' })
 
 // 18홀 +/- 입력값 (0 = 파)
 const diffs = ref(Array(18).fill(0))
@@ -125,6 +129,8 @@ const diffs = ref(Array(18).fill(0))
 const sum1 = computed(() => diffs.value.slice(0, 9).reduce((a, d) => a + (d || 0), 0))
 const sum2 = computed(() => diffs.value.slice(9, 18).reduce((a, d) => a + (d || 0), 0))
 const totalDiff = computed(() => form.value.holes === 18 ? sum1.value + sum2.value : sum1.value)
+const totalPar = computed(() => form.value.holes === 18 ? 72 : 36)
+const finalScore = computed(() => totalPar.value + totalDiff.value)
 
 function diffClass(d) {
   if (d <= -2) return 'eagle'
@@ -139,7 +145,6 @@ const saveError = ref('')
 
 async function save() {
   if (!form.value.course_name) { saveError.value = '골프장 이름을 입력하세요.'; return }
-  if (!form.value.total_score) { saveError.value = '총 스코어를 입력하세요.'; return }
   saving.value = true
   saveError.value = ''
   try {
@@ -150,7 +155,7 @@ async function save() {
         course_name: form.value.course_name,
         played_at: form.value.played_at,
         holes: form.value.holes,
-        total_score: form.value.total_score,
+        total_score: finalScore.value,
         notes: form.value.notes
       })
       .select().single()
