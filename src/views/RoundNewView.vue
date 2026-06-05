@@ -43,12 +43,7 @@
             </select>
           </div>
         </div>
-        <div v-if="form.holes === 18" class="form-group">
-          <label>시작 코스</label>
-          <div class="start-tabs">
-            <button :class="{ active: startWith === 'OUT' }" @click="startWith = 'OUT'">OUT 먼저 (1~9홀)</button>
-            <button :class="{ active: startWith === 'IN' }" @click="startWith = 'IN'">IN 먼저 (10~18홀)</button>
-          </div>
+        <div v-if="false">
         </div>
         <div class="form-group">
           <label>메모</label>
@@ -67,66 +62,104 @@
         </div>
         <p v-if="inputMode === 'diff'" class="mode-desc">스코어카드의 오버파 숫자를 그대로 입력하세요 (이븐=0, 보기=1, 버디=-1)</p>
 
-        <!-- 가로 스코어카드 형식 -->
+        <!-- 가로 스코어카드 형식: 위=1~9홀, 아래=10~18홀 -->
         <div class="scorecard-wrap">
-          <!-- startWith에 따라 첫 번째/두 번째 테이블 순서 결정 -->
-          <template v-for="section in (startWith==='IN' ? ['IN','OUT'] : ['OUT','IN'])" :key="section">
-            <table class="scorecard-table" :style="section!=(startWith==='IN'?'IN':'OUT') ? 'margin-top:12px' : ''">
+          <!-- 첫 번째 줄: 1~9홀 -->
+          <table class="scorecard-table">
+            <thead>
+              <tr>
+                <th class="label-cell">홀</th>
+                <th v-for="h in 9" :key="h">{{ h }}</th>
+                <th class="sum-cell">계</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="label-cell">파</td>
+                <td v-for="h in 9" :key="'par'+h">
+                  <select v-model="scores[h-1].par" class="par-sel-h">
+                    <option :value="3">3</option>
+                    <option :value="4">4</option>
+                    <option :value="5">5</option>
+                  </select>
+                </td>
+                <td class="sum-cell">{{ scores.slice(0,9).reduce((a,s)=>a+s.par,0) }}</td>
+              </tr>
+              <tr>
+                <td class="label-cell">{{ inputMode==='diff' ? '+/-' : '타수' }}</td>
+                <td v-for="h in 9" :key="'sc'+h">
+                  <input v-if="inputMode==='score'"
+                    v-model.number="scores[h-1].score"
+                    type="number" min="1" max="20"
+                    class="score-input-h" :class="scoreClass(scores[h-1])"
+                  />
+                  <input v-else
+                    v-model.number="diffs[h-1]"
+                    type="number" min="-5" max="15"
+                    class="score-input-h" :class="diffClass(diffs[h-1])"
+                    @change="applyDiff(h-1)"
+                  />
+                </td>
+                <td class="sum-cell score-sum">{{ scores.slice(0,9).reduce((a,s)=>a+s.score,0) }}</td>
+              </tr>
+              <tr>
+                <td class="label-cell">{{ inputMode==='diff' ? '타수' : '+/-' }}</td>
+                <td v-for="h in 9" :key="'dif'+h" class="diff-cell" :class="inputMode==='score' ? scoreClass(scores[h-1]) : ''">
+                  {{ inputMode==='diff' ? scores[h-1].score : scoreDiff(scores[h-1]) }}
+                </td>
+                <td class="sum-cell diff-cell">
+                  {{ (d => (d>0?'+':'')+d)(scores.slice(0,9).reduce((a,s)=>a+(s.score-s.par),0)) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+
+          <!-- 두 번째 줄: 10~18홀 (18홀만) -->
+          <template v-if="form.holes === 18">
+            <table class="scorecard-table" style="margin-top:12px">
               <thead>
                 <tr>
-                  <th class="label-cell">{{ section }}</th>
-                  <th v-for="h in 9" :key="h">{{ section==='OUT' ? h : h+9 }}</th>
+                  <th class="label-cell">홀</th>
+                  <th v-for="h in 9" :key="h">{{ h+9 }}</th>
                   <th class="sum-cell">계</th>
                 </tr>
               </thead>
               <tbody>
-                <!-- 파 행 -->
                 <tr>
                   <td class="label-cell">파</td>
-                  <td v-for="h in 9" :key="'par'+section+h">
-                    <select v-model="scores[section==='OUT' ? h-1 : h+8].par" class="par-sel-h">
+                  <td v-for="h in 9" :key="'par2'+h">
+                    <select v-model="scores[h+8].par" class="par-sel-h">
                       <option :value="3">3</option>
                       <option :value="4">4</option>
                       <option :value="5">5</option>
                     </select>
                   </td>
-                  <td class="sum-cell">{{ (section==='OUT' ? scores.slice(0,9) : scores.slice(9,18)).reduce((a,s)=>a+s.par,0) }}</td>
+                  <td class="sum-cell">{{ scores.slice(9,18).reduce((a,s)=>a+s.par,0) }}</td>
                 </tr>
-                <!-- 타수 또는 +/- 입력 행 -->
                 <tr>
                   <td class="label-cell">{{ inputMode==='diff' ? '+/-' : '타수' }}</td>
-                  <td v-for="h in 9" :key="'sc'+section+h">
-                    <template v-if="inputMode==='score'">
-                      <input
-                        v-model.number="scores[section==='OUT' ? h-1 : h+8].score"
-                        type="number" min="1" max="20"
-                        class="score-input-h"
-                        :class="scoreClass(scores[section==='OUT' ? h-1 : h+8])"
-                      />
-                    </template>
-                    <template v-else>
-                      <input
-                        v-model.number="diffs[section==='OUT' ? h-1 : h+8]"
-                        type="number" min="-5" max="15"
-                        class="score-input-h"
-                        :class="diffClass(diffs[section==='OUT' ? h-1 : h+8])"
-                        @change="applyDiff(section==='OUT' ? h-1 : h+8)"
-                      />
-                    </template>
+                  <td v-for="h in 9" :key="'sc2'+h">
+                    <input v-if="inputMode==='score'"
+                      v-model.number="scores[h+8].score"
+                      type="number" min="1" max="20"
+                      class="score-input-h" :class="scoreClass(scores[h+8])"
+                    />
+                    <input v-else
+                      v-model.number="diffs[h+8]"
+                      type="number" min="-5" max="15"
+                      class="score-input-h" :class="diffClass(diffs[h+8])"
+                      @change="applyDiff(h+8)"
+                    />
                   </td>
-                  <td class="sum-cell score-sum">{{ (section==='OUT' ? scores.slice(0,9) : scores.slice(9,18)).reduce((a,s)=>a+s.score,0) }}</td>
+                  <td class="sum-cell score-sum">{{ scores.slice(9,18).reduce((a,s)=>a+s.score,0) }}</td>
                 </tr>
-                <!-- 결과 행 -->
                 <tr>
                   <td class="label-cell">{{ inputMode==='diff' ? '타수' : '+/-' }}</td>
-                  <td v-for="h in 9" :key="'diff'+section+h" class="diff-cell"
-                    :class="inputMode==='diff' ? '' : scoreClass(scores[section==='OUT' ? h-1 : h+8])">
-                    {{ inputMode==='diff'
-                      ? scores[section==='OUT' ? h-1 : h+8].score
-                      : scoreDiff(scores[section==='OUT' ? h-1 : h+8]) }}
+                  <td v-for="h in 9" :key="'dif2'+h" class="diff-cell" :class="inputMode==='score' ? scoreClass(scores[h+8]) : ''">
+                    {{ inputMode==='diff' ? scores[h+8].score : scoreDiff(scores[h+8]) }}
                   </td>
                   <td class="sum-cell diff-cell">
-                    {{ (()=>{ const d=(section==='OUT'?scores.slice(0,9):scores.slice(9,18)).reduce((a,s)=>a+(s.score-s.par),0); return (d>0?'+':'')+d })() }}
+                    {{ (d => (d>0?'+':'')+d)(scores.slice(9,18).reduce((a,s)=>a+(s.score-s.par),0)) }}
                   </td>
                 </tr>
               </tbody>
