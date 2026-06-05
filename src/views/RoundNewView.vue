@@ -10,8 +10,20 @@
 
     <div class="main-content" style="padding-top:76px">
 
+      <!-- 사진 자동 입력 -->
+      <div class="card scan-card">
+        <div class="scan-title">📸 스코어카드 사진으로 자동 입력</div>
+        <p class="scan-desc">스코어카드를 촬영하면 AI가 오버파 수치를 자동으로 읽어냅니다</p>
+        <label class="btn btn-primary" style="cursor:pointer;display:inline-flex">
+          사진 선택
+          <input type="file" accept="image/*" capture="environment" style="display:none" @change="onPhoto" />
+        </label>
+        <div v-if="scanning" class="scanning-msg">🤖 AI가 스코어카드를 분석 중...</div>
+        <div v-if="scanError" class="error-msg" style="margin-top:8px">{{ scanError }}</div>
+      </div>
+
       <!-- 기본 정보 -->
-      <div class="card">
+      <div class="card" style="margin-top:16px">
         <h3 class="sec-title">기본 정보</h3>
         <div class="form-group">
           <label>골프장 이름</label>
@@ -132,6 +144,77 @@ const totalDiff = computed(() => form.value.holes === 18 ? sum1.value + sum2.val
 const totalPar = computed(() => form.value.holes === 18 ? 72 : 36)
 const finalScore = computed(() => totalPar.value + totalDiff.value)
 
+const scanning = ref(false)
+const scanError = ref('')
+
+async function onPhoto(e) {
+  const file = e.target.files[0]
+  if (!file) return
+  scanError.value = ''
+  scanning.value = true
+  try {
+    const base64 = await resizeImage(file, 1024)
+    const prompt = `이 골프 스코어카드에서 각 홀의 오버파 수치를 읽어주세요.
+
+스코어카드에 IN/OUT 두 줄로 표시된 경우:
+- 첫 번째 줄 9개 숫자 = 1~9홀 오버파
+- 두 번째 줄 9개 숫자 = 10~18홀 오버파
+- 숫자가 0이면 파(이븐), 1이면 보기, 2면 더블보기, -1이면 버디
+
+골프장 이름과 날짜도 있으면 함께 추출해주세요.
+
+반드시 아래 JSON 형식만 반환 (다른 텍스트 없이):
+{"course":"골프장명","date":"YYYY-MM-DD","diffs":[1,1,0,2,0,0,1,1,1,2,1,1,3,2,1,1,2,0]}
+
+diffs는 1홀부터 18홀(또는 9홀) 순서로 오버파 숫자 배열.`
+
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${import.meta.env.VITE_GROQ_API_KEY}` },
+      body: JSON.stringify({
+        model: 'meta-llama/llama-4-scout-17b-16e-instruct',
+        messages: [{ role: 'user', content: [
+          { type: 'text', text: prompt },
+          { type: 'image_url', image_url: { url: base64 } }
+        ]}],
+        temperature: 0.1, max_tokens: 500
+      })
+    })
+    const json = await res.json()
+    const text = json.choices?.[0]?.message?.content || ''
+    const match = text.match(/\{[\s\S]*\}/)
+    if (!match) throw new Error('인식 실패')
+    const obj = JSON.parse(match[0])
+    if (obj.course) form.value.course_name = obj.course
+    if (obj.date) form.value.played_at = obj.date
+    if (obj.diffs?.length) {
+      obj.diffs.forEach((d, i) => { if (i < 18) diffs.value[i] = d })
+      form.value.holes = obj.diffs.length <= 9 ? 9 : 18
+    }
+  } catch (err) {
+    scanError.value = '자동 인식 실패. 수동으로 입력해주세요.'
+  } finally {
+    scanning.value = false
+  }
+}
+
+function resizeImage(file, maxSize) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      let w = img.width, h = img.height
+      if (w > h) { h = h * maxSize / w; w = maxSize } else { w = w * maxSize / h; h = maxSize }
+      canvas.width = w; canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      resolve(canvas.toDataURL('image/jpeg', 0.85))
+      URL.revokeObjectURL(url)
+    }
+    img.src = url
+  })
+}
+
 function diffClass(d) {
   if (d <= -2) return 'eagle'
   if (d === -1) return 'birdie'
@@ -192,6 +275,11 @@ async function save() {
   height: 100%; display: flex; align-items: center; justify-content: space-between;
 }
 .btn-back { border: none; background: none; font-size: 15px; cursor: pointer; color: var(--green); font-weight: 600; }
+
+.scan-card { background: linear-gradient(135deg, #d8f3dc, #b7e4c7); border: none; }
+.scan-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+.scan-desc { font-size: 13px; color: #2d6a4f; margin-bottom: 14px; }
+.scanning-msg { margin-top: 12px; font-size: 14px; color: var(--green); font-weight: 600; }
 
 .sec-title { font-size: 15px; font-weight: 700; margin-bottom: 16px; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
