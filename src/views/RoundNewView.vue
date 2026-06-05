@@ -15,7 +15,11 @@
         <p class="scan-desc">스코어카드를 촬영하면 AI가 자동으로 타수를 읽어냅니다</p>
         <div class="scan-actions">
           <label class="btn btn-primary" style="cursor:pointer">
-            사진 선택
+            📷 촬영
+            <input type="file" accept="image/*" capture="environment" style="display:none" @change="onPhoto" />
+          </label>
+          <label class="btn btn-outline" style="cursor:pointer">
+            🖼 갤러리
             <input type="file" accept="image/*" style="display:none" @change="onPhoto" />
           </label>
         </div>
