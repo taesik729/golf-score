@@ -11,54 +11,74 @@
     <div class="main-content" style="padding-top:76px">
       <div v-if="loading" class="text-muted">불러오는 중...</div>
       <template v-else-if="round">
-        <!-- 요약 -->
-        <div class="card summary-card">
-          <div class="summary-course">{{ round.course_name }}</div>
-          <div class="summary-date">{{ formatDate(round.played_at) }} · {{ round.holes }}홀</div>
-          <div class="summary-score-row">
-            <div class="summary-big">
-              <span class="big-num">{{ round.total_score }}</span><span class="big-label">타</span>
-            </div>
-            <div class="summary-stats">
-              <div>파 <strong>{{ totalPar }}</strong></div>
-              <div :class="diffClass">{{ diffText }}</div>
-            </div>
+
+        <!-- 스코어 미리보기 -->
+        <div class="score-preview">
+          <div class="score-preview-left">
+            <div class="preview-label">SCORE</div>
+            <div class="preview-score">{{ round.total_score }}</div>
           </div>
-          <div v-if="round.notes" class="summary-notes">📝 {{ round.notes }}</div>
+          <div class="score-preview-right">
+            <div class="preview-course">{{ round.course_name }}</div>
+            <div class="preview-date">{{ formatDate(round.played_at) }} · {{ round.holes }}홀</div>
+            <div class="preview-diff" :class="diffClass">{{ diffText }}</div>
+          </div>
         </div>
 
-        <!-- 홀별 스코어 -->
+        <!-- 홀별 스코어 가로 테이블 -->
         <div class="card" style="margin-top:16px">
-          <h3 style="font-size:15px;font-weight:700;margin-bottom:16px">홀별 스코어</h3>
+          <h3 style="font-size:15px;font-weight:700;margin-bottom:12px">홀별 스코어</h3>
 
-          <!-- 전반/후반 탭 (18홀) -->
-          <div v-if="round.holes === 18" class="half-tabs">
-            <button :class="{ active: halfTab === 'front' }" @click="halfTab = 'front'">전반 (1-9홀)</button>
-            <button :class="{ active: halfTab === 'back' }" @click="halfTab = 'back'">후반 (10-18홀)</button>
-            <button :class="{ active: halfTab === 'all' }" @click="halfTab = 'all'">전체</button>
-          </div>
+          <!-- 전반 1~9홀 -->
+          <table class="scorecard-table">
+            <thead>
+              <tr>
+                <th class="label-cell">홀</th>
+                <th v-for="h in 9" :key="h">{{ h }}</th>
+                <th class="sum-cell">T</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="label-cell">Score</td>
+                <td v-for="h in 9" :key="'s'+h"
+                  class="score-cell" :class="scoreClass(front[h-1])">
+                  {{ front[h-1] ? scoreDiff(front[h-1]) : '-' }}
+                </td>
+                <td class="sum-cell" :class="front9Diff > 0 ? 'over' : front9Diff < 0 ? 'birdie' : 'even'">
+                  {{ front9Diff > 0 ? '+' : '' }}{{ front9Diff }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
 
-          <div class="score-grid">
-            <div class="score-header">
-              <span>홀</span><span>파</span><span>타수</span><span>+/-</span>
-            </div>
-            <div v-for="s in displayScores" :key="s.hole" class="score-row">
-              <span class="hole-num">{{ s.hole }}</span>
-              <span class="par-num">{{ s.par }}</span>
-              <span class="score-num" :class="scoreClass(s)">{{ s.score }}</span>
-              <span class="diff" :class="scoreClass(s)">{{ scoreDiff(s) }}</span>
-            </div>
-          </div>
+          <!-- 후반 10~18홀 -->
+          <template v-if="round.holes === 18">
+            <table class="scorecard-table" style="margin-top:10px">
+              <thead>
+                <tr>
+                  <th class="label-cell">홀</th>
+                  <th v-for="h in 9" :key="h">{{ h+9 }}</th>
+                  <th class="sum-cell">T</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="label-cell">Score</td>
+                  <td v-for="h in 9" :key="'b'+h"
+                    class="score-cell" :class="scoreClass(back[h-1])">
+                    {{ back[h-1] ? scoreDiff(back[h-1]) : '-' }}
+                  </td>
+                  <td class="sum-cell" :class="back9Diff > 0 ? 'over' : back9Diff < 0 ? 'birdie' : 'even'">
+                    {{ back9Diff > 0 ? '+' : '' }}{{ back9Diff }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </template>
 
-          <!-- 소계 -->
-          <div class="subtotal-row">
-            <span>소계</span>
-            <span>{{ displayPar }}</span>
-            <span class="total-score">{{ displayScore }}타</span>
-            <span :class="displayScore - displayPar > 0 ? 'over' : displayScore - displayPar < 0 ? 'under' : 'even'">
-              {{ displayScore - displayPar > 0 ? '+' : '' }}{{ displayScore - displayPar }}
-            </span>
-          </div>
+          <!-- 메모 -->
+          <div v-if="round.notes" class="notes-row">📝 {{ round.notes }}</div>
         </div>
 
         <!-- 분석 -->
@@ -71,6 +91,7 @@
             </div>
           </div>
         </div>
+
       </template>
     </div>
   </div>
@@ -81,12 +102,11 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase } from '../supabase/client'
 
-const route = useRoute()
+const route  = useRoute()
 const router = useRouter()
-const round = ref(null)
+const round     = ref(null)
 const scoreList = ref([])
-const loading = ref(true)
-const halfTab = ref('all')
+const loading   = ref(true)
 
 onMounted(async () => {
   const id = route.params.id
@@ -94,14 +114,20 @@ onMounted(async () => {
     supabase.from('golf_rounds').select('*').eq('id', id).single(),
     supabase.from('golf_scores').select('*').eq('round_id', id).order('hole')
   ])
-  round.value = r
+  round.value   = r
   scoreList.value = s || []
   loading.value = false
 })
 
-const totalPar = computed(() => scoreList.value.reduce((a, s) => a + s.par, 0))
+const front = computed(() => scoreList.value.filter(s => s.hole <= 9))
+const back  = computed(() => scoreList.value.filter(s => s.hole >= 10))
 
-const diff = computed(() => (round.value?.total_score || 0) - totalPar.value)
+const front9Diff = computed(() => front.value.reduce((a, s) => a + (s.score - s.par), 0))
+const back9Diff  = computed(() => back.value.reduce((a, s) => a + (s.score - s.par), 0))
+
+const totalPar = computed(() => scoreList.value.reduce((a, s) => a + s.par, 0))
+const diff     = computed(() => (round.value?.total_score || 0) - totalPar.value)
+
 const diffText = computed(() => {
   const d = diff.value
   if (d === 0) return 'EVEN'
@@ -110,19 +136,11 @@ const diffText = computed(() => {
 const diffClass = computed(() => {
   const d = diff.value
   if (d <= -2) return 'eagle'
-  if (d < 0) return 'birdie'
+  if (d < 0)   return 'birdie'
   if (d === 0) return 'even'
-  if (d <= 5) return 'bogey'
+  if (d <= 5)  return 'bogey'
   return 'over'
 })
-
-const displayScores = computed(() => {
-  if (halfTab.value === 'front') return scoreList.value.filter(s => s.hole <= 9)
-  if (halfTab.value === 'back') return scoreList.value.filter(s => s.hole >= 10)
-  return scoreList.value
-})
-const displayPar = computed(() => displayScores.value.reduce((a, s) => a + s.par, 0))
-const displayScore = computed(() => displayScores.value.reduce((a, s) => a + s.score, 0))
 
 const analysis = computed(() => {
   const list = scoreList.value
@@ -130,30 +148,31 @@ const analysis = computed(() => {
   return [
     { label: '이글', count: count(s => s.score - s.par <= -2), cls: 'eagle' },
     { label: '버디', count: count(s => s.score - s.par === -1), cls: 'birdie' },
-    { label: '파', count: count(s => s.score - s.par === 0), cls: 'even' },
-    { label: '보기', count: count(s => s.score - s.par === 1), cls: 'bogey' },
-    { label: '더블+', count: count(s => s.score - s.par >= 2), cls: 'over' },
+    { label: '파',   count: count(s => s.score - s.par === 0),  cls: 'even'   },
+    { label: '보기', count: count(s => s.score - s.par === 1),  cls: 'bogey'  },
+    { label: '더블+',count: count(s => s.score - s.par >= 2),  cls: 'over'   },
   ]
 })
 
 function scoreDiff(s) {
+  if (!s) return '-'
   const d = s.score - s.par
-  if (d === 0) return 'E'
+  if (d === 0)  return '0'
   return d > 0 ? `+${d}` : `${d}`
 }
 function scoreClass(s) {
+  if (!s) return ''
   const d = s.score - s.par
   if (d <= -2) return 'eagle'
   if (d === -1) return 'birdie'
-  if (d === 0) return 'even'
-  if (d === 1) return 'bogey'
+  if (d === 0)  return 'even'
+  if (d === 1)  return 'bogey'
   return 'over'
 }
 function formatDate(d) {
   if (!d) return ''
   return new Date(d).toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric' })
 }
-
 async function deleteRound() {
   if (!confirm('이 라운드를 삭제하시겠습니까?')) return
   await supabase.from('golf_scores').delete().eq('round_id', round.value.id)
@@ -175,59 +194,103 @@ async function deleteRound() {
 .btn-back { border: none; background: none; font-size: 15px; cursor: pointer; color: var(--green); font-weight: 600; }
 .btn-danger-sm { border: none; background: #fee2e2; color: #dc2626; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 13px; }
 
-.summary-card { background: linear-gradient(135deg, #1b4332, #2d6a4f); color: white; }
-.summary-course { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
-.summary-date { font-size: 14px; opacity: 0.8; margin-bottom: 16px; }
-.summary-score-row { display: flex; align-items: flex-end; gap: 20px; margin-bottom: 12px; }
-.big-num { font-size: 56px; font-weight: 800; line-height: 1; }
-.big-label { font-size: 20px; opacity: 0.8; }
-.summary-stats { display: flex; flex-direction: column; gap: 4px; font-size: 15px; padding-bottom: 8px; }
-.summary-notes { font-size: 13px; opacity: 0.85; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2); }
-
-.half-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
-.half-tabs button {
-  padding: 6px 14px; border-radius: 20px; border: 1.5px solid var(--border);
-  background: white; cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted);
+/* 스코어 미리보기 */
+.score-preview {
+  display: flex;
+  align-items: center;
+  background: linear-gradient(135deg, #1b4332, #2d6a4f);
+  border-radius: 14px;
+  padding: 20px;
+  gap: 20px;
+  color: white;
 }
-.half-tabs button.active { background: var(--green); color: white; border-color: var(--green); }
-
-.score-grid { display: flex; flex-direction: column; gap: 4px; }
-.score-header {
-  display: grid; grid-template-columns: 36px 48px 64px 48px;
-  gap: 8px; font-size: 12px; font-weight: 700; color: var(--text-muted); padding: 0 4px;
+.score-preview-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  width: 84px;
+  height: 84px;
+  justify-content: center;
+  flex-shrink: 0;
 }
-.score-row {
-  display: grid; grid-template-columns: 36px 48px 64px 48px;
-  gap: 8px; align-items: center; padding: 6px 4px; border-radius: 6px;
-}
-.score-row:nth-child(even) { background: var(--bg); }
-.hole-num { font-weight: 700; text-align: center; }
-.par-num { text-align: center; color: var(--text-muted); }
-.score-num { text-align: center; font-size: 18px; font-weight: 800; }
-.diff { text-align: center; font-size: 13px; font-weight: 700; }
+.preview-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; opacity: 0.8; }
+.preview-score { font-size: 34px; font-weight: 900; line-height: 1; }
+.score-preview-right { flex: 1; }
+.preview-course { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+.preview-date   { font-size: 13px; opacity: 0.8; margin-bottom: 6px; }
+.preview-diff   { font-size: 16px; font-weight: 700; }
+.preview-diff.over   { color: #fca5a5; }
+.preview-diff.birdie { color: #93c5fd; }
+.preview-diff.eagle  { color: #c4b5fd; }
+.preview-diff.even   { color: #d1d5db; }
+.preview-diff.bogey  { color: #fdba74; }
 
-.subtotal-row {
-  display: grid; grid-template-columns: 36px 48px 64px 48px;
-  gap: 8px; padding: 12px 4px 4px; border-top: 2px solid var(--border); margin-top: 8px; font-weight: 700;
+/* 가로 스코어카드 */
+.scorecard-table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
 }
-.total-score { font-size: 18px; font-weight: 800; color: var(--green); text-align: center; }
+.scorecard-table th {
+  background: var(--green);
+  color: white;
+  padding: 5px 2px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+}
+.scorecard-table td {
+  padding: 6px 2px;
+  text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.label-cell {
+  width: 40px;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--text-muted);
+  text-align: left !important;
+  padding-left: 4px !important;
+}
+.sum-cell {
+  width: 30px;
+  font-weight: 800;
+  font-size: 13px;
+  background: #f0fdf4 !important;
+}
+.score-cell {
+  font-size: 14px;
+  font-weight: 800;
+}
 
+.notes-row {
+  margin-top: 14px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+/* 분석 */
 .analysis-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
 .analysis-item { text-align: center; padding: 12px 8px; border-radius: 10px; background: var(--bg); }
 .a-count { font-size: 24px; font-weight: 800; }
 .a-label { font-size: 12px; margin-top: 4px; color: var(--text-muted); }
-.analysis-item.eagle .a-count { color: #7c3aed; }
+.analysis-item.eagle  .a-count { color: #7c3aed; }
 .analysis-item.birdie .a-count { color: #2563eb; }
-.analysis-item.even .a-count { color: var(--green); }
-.analysis-item.bogey .a-count { color: #ea580c; }
-.analysis-item.over .a-count { color: #dc2626; }
+.analysis-item.even   .a-count { color: var(--green); }
+.analysis-item.bogey  .a-count { color: #ea580c; }
+.analysis-item.over   .a-count { color: #dc2626; }
 
-.eagle { color: #7c3aed; }
+/* 색상 */
+.eagle  { color: #7c3aed; }
 .birdie { color: #2563eb; }
-.even { color: var(--text-muted); }
-.bogey { color: #ea580c; }
-.over { color: #dc2626; }
-.under { color: #2563eb; }
+.even   { color: var(--text-muted); }
+.bogey  { color: #ea580c; }
+.over   { color: #dc2626; }
 
 .text-muted { color: var(--text-muted); text-align: center; padding: 40px; }
 </style>
