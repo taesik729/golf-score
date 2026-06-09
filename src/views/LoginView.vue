@@ -132,7 +132,7 @@ async function sendReset() {
   if (error) {
     message.value = '가입되지 않은 이메일이거나 발송에 실패했습니다.'; isError.value = true
   } else {
-    message.value = '✅ 재설정 링크를 이메일로 발송했습니다.'; isError.value = false
+    message.value = '✅ 가입된 계정이라면 재설정 링크가 발송됩니다. 메일함을 확인해주세요.'; isError.value = false
   }
 }
 </script>
