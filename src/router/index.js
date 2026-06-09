@@ -9,6 +9,7 @@ const routes = [
   { path: '/round/:id', component: () => import('../views/RoundDetailView.vue') },
   { path: '/settings', component: () => import('../views/SettingsView.vue') },
   { path: '/reset-password', component: () => import('../views/ResetPasswordView.vue'), meta: { public: true } },
+  { path: '/privacy', component: () => import('../views/PrivacyView.vue'), meta: { public: true } },
 ]
 
 const router = createRouter({

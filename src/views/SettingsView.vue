@@ -36,6 +36,9 @@
 
       <!-- 회원 탈퇴 -->
       <button class="btn-withdraw" @click="showWithdraw = true">회원 탈퇴</button>
+      <div style="text-align:center;margin-top:4px">
+        <router-link to="/privacy" style="font-size:12px;color:var(--text-muted);text-decoration:underline">개인정보처리방침</router-link>
+      </div>
 
     </div>
 

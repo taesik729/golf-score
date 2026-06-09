@@ -51,6 +51,9 @@
       </template>
 
     </div>
+    <div class="privacy-link">
+      <router-link to="/privacy">개인정보처리방침</router-link>
+    </div>
   </div>
 </template>
 
@@ -142,4 +145,6 @@ async function sendReset() {
   padding: 4px; text-decoration: underline; width: 100%;
 }
 .link-btn.hint { color: var(--text-muted); font-size: 12px; }
+.privacy-link { text-align: center; }
+.privacy-link a { font-size: 12px; color: rgba(255,255,255,0.6); text-decoration: underline; }
 </style>
