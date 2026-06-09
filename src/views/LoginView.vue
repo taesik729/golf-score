@@ -1,7 +1,7 @@
 <template>
   <div class="login-wrap">
     <div class="login-box card">
-      <div class="logo">⛳ 골프 스코어</div>
+      <div class="logo">⛳ 필드 스코어</div>
       <p class="sub">라운드 기록을 쉽게 관리하세요</p>
 
       <div class="tabs">

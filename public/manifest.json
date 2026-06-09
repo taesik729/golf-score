@@ -1,6 +1,6 @@
 {
-  "name": "골프 스코어",
-  "short_name": "골프스코어",
+  "name": "필드 스코어",
+  "short_name": "필드스코어",
   "description": "골프 라운드 스코어 기록 앱",
   "start_url": "/",
   "display": "standalone",

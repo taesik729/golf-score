@@ -3,7 +3,7 @@
     <!-- 탑바 -->
     <header class="topbar">
       <div class="topbar-inner">
-        <span class="topbar-logo">⛳ 골프 스코어</span>
+        <span class="topbar-logo">⛳ 필드 스코어</span>
         <div class="topbar-right">
           <span class="user-email">{{ auth.user?.email }}</span>
           <button class="btn btn-outline" style="padding:6px 14px;font-size:13px" @click="logout">로그아웃</button>
