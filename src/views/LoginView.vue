@@ -1,29 +1,55 @@
 <template>
   <div class="login-wrap">
-    <div class="login-box card">
-      <div class="logo">⛳ 필드 스코어</div>
-      <p class="sub">라운드 기록을 쉽게 관리하세요</p>
+    <div class="login-logo">
+      <div class="login-logo-icon">⛳</div>
+      <h1>필드 스코어</h1>
+      <p>라운드 기록을 쉽게 관리하세요</p>
+    </div>
+    <div class="login-card card">
 
-      <div class="tabs">
-        <button :class="{ active: mode === 'login' }" @click="mode = 'login'">로그인</button>
-        <button :class="{ active: mode === 'signup' }" @click="mode = 'signup'">회원가입</button>
-      </div>
+      <!-- 비밀번호 찾기 모드 -->
+      <template v-if="isForgot">
+        <div class="form-group">
+          <label>가입한 이메일</label>
+          <input v-model="email" type="email" placeholder="이메일 입력"
+            @keyup.enter="sendReset" autocomplete="email" />
+        </div>
+        <p v-if="message" :class="['msg', isError ? 'error' : 'success']">{{ message }}</p>
+        <button class="btn btn-primary" style="width:100%" @click="sendReset" :disabled="sending">
+          {{ sending ? '발송 중...' : '재설정 링크 발송' }}
+        </button>
+        <button class="link-btn" @click="isForgot = false; message = ''">← 로그인으로 돌아가기</button>
+      </template>
 
-      <form @submit.prevent="submit">
+      <!-- 로그인 / 회원가입 모드 -->
+      <template v-else>
         <div class="form-group">
           <label>이메일</label>
-          <input v-model="email" type="email" placeholder="example@email.com" required />
+          <input v-model="email" type="email" placeholder="example@email.com"
+            @keyup.enter="submit" autocomplete="email" />
         </div>
         <div class="form-group">
           <label>비밀번호</label>
-          <input v-model="password" type="password" placeholder="6자 이상" required minlength="6" />
+          <input v-model="pw" type="password" placeholder="6자 이상"
+            @keyup.enter="submit" autocomplete="current-password" />
         </div>
-        <div v-if="errorMsg" class="error-msg">{{ errorMsg }}</div>
-        <div v-if="successMsg" class="success-msg">{{ successMsg }}</div>
-        <button type="submit" class="btn btn-primary" style="width:100%;margin-top:8px" :disabled="loading">
-          {{ loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입' }}
+
+        <p v-if="message" :class="['msg', isError ? 'error' : 'success']">{{ message }}</p>
+
+        <button class="btn btn-primary" style="width:100%;margin-top:4px" @click="submit" :disabled="auth.loading">
+          {{ auth.loading ? '처리 중...' : (isSignup ? '회원가입' : '로그인') }}
         </button>
-      </form>
+
+        <div class="bottom-links">
+          <button class="link-btn" @click="toggle">
+            {{ isSignup ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입' }}
+          </button>
+          <button v-if="!isSignup" class="link-btn hint" @click="isForgot = true; message = ''">
+            비밀번호를 잊으셨나요?
+          </button>
+        </div>
+      </template>
+
     </div>
   </div>
 </template>
@@ -32,37 +58,57 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '../stores/auth'
+import { supabase } from '../supabase/client'
 
-const router = useRouter()
-const auth = useAuthStore()
+const auth     = useAuthStore()
+const router   = useRouter()
+const email    = ref('')
+const pw       = ref('')
+const isSignup = ref(false)
+const isForgot = ref(false)
+const message  = ref('')
+const isError  = ref(false)
+const sending  = ref(false)
 
-const mode = ref('login')
-const email = ref('')
-const password = ref('')
-const loading = ref(false)
-const errorMsg = ref('')
-const successMsg = ref('')
+function toggle() {
+  isSignup.value = !isSignup.value
+  message.value  = ''
+}
 
 async function submit() {
-  errorMsg.value = ''
-  successMsg.value = ''
-  loading.value = true
-  try {
-    if (mode.value === 'login') {
-      await auth.signIn(email.value, password.value)
-      router.push('/dashboard')
+  if (!email.value || !pw.value) {
+    message.value = '이메일과 비밀번호를 입력해주세요.'; isError.value = true; return
+  }
+  message.value = ''
+  if (isSignup.value) {
+    const ok = await auth.signup(email.value.trim(), pw.value)
+    if (ok) {
+      message.value = '✅ 가입 완료! 로그인해주세요.'
+      isError.value  = false
+      isSignup.value = false
     } else {
-      const data = await auth.signUp(email.value, password.value)
-      if (data?.session) {
-        router.push('/dashboard')
-      } else {
-        successMsg.value = '가입 완료! 로그인해주세요.'
-      }
+      message.value = auth.error || '가입 실패. 다시 시도해주세요.'; isError.value = true
     }
-  } catch (e) {
-    errorMsg.value = e.message
-  } finally {
-    loading.value = false
+  } else {
+    const ok = await auth.login(email.value.trim(), pw.value)
+    if (ok) router.replace('/dashboard')
+    else { message.value = auth.error || '로그인 실패. 이메일/비밀번호를 확인해주세요.'; isError.value = true }
+  }
+}
+
+async function sendReset() {
+  if (!email.value) {
+    message.value = '이메일을 입력해주세요.'; isError.value = true; return
+  }
+  sending.value = true; message.value = ''
+  const { error } = await supabase.auth.resetPasswordForEmail(email.value.trim(), {
+    redirectTo: `${window.location.origin}/reset-password`
+  })
+  sending.value = false
+  if (error) {
+    message.value = '발송 실패. 이메일을 확인해주세요.'; isError.value = true
+  } else {
+    message.value = '✅ 재설정 링크를 이메일로 발송했습니다.'; isError.value = false
   }
 }
 </script>
@@ -71,53 +117,29 @@ async function submit() {
 .login-wrap {
   min-height: 100vh;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%);
   padding: 16px;
+  gap: 20px;
 }
-.login-box {
-  width: 100%;
-  max-width: 400px;
+.login-logo { text-align: center; color: white; }
+.login-logo-icon { font-size: 48px; margin-bottom: 8px; }
+.login-logo h1 { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+.login-logo p  { font-size: 14px; opacity: .8; }
+.login-card { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: 0; }
+.msg {
+  font-size: 13px; padding: 10px 12px;
+  border-radius: 8px; text-align: center; margin-bottom: 8px;
 }
-.logo {
-  font-size: 28px;
-  font-weight: 800;
-  text-align: center;
-  margin-bottom: 6px;
+.msg.error   { background: #fee2e2; color: #ef4444; }
+.msg.success { background: #d1fae5; color: #059669; }
+.bottom-links { display: flex; flex-direction: column; gap: 4px; margin-top: 8px; }
+.link-btn {
+  background: none; border: none; color: var(--green);
+  font-size: 13px; cursor: pointer; text-align: center;
+  padding: 4px; text-decoration: underline; width: 100%;
 }
-.sub {
-  text-align: center;
-  color: var(--text-muted);
-  font-size: 14px;
-  margin-bottom: 24px;
-}
-.tabs {
-  display: flex;
-  background: var(--bg);
-  border-radius: 8px;
-  padding: 4px;
-  margin-bottom: 24px;
-}
-.tabs button {
-  flex: 1;
-  border: none;
-  background: transparent;
-  padding: 8px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  color: var(--text-muted);
-  transition: all 0.2s;
-}
-.tabs button.active {
-  background: white;
-  color: var(--green);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
-}
-.success-msg {
-  color: var(--green);
-  font-size: 13px;
-  margin-top: 4px;
-}
+.link-btn.hint { color: var(--text-muted); font-size: 12px; }
 </style>

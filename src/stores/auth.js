@@ -3,7 +3,9 @@ import { ref } from 'vue'
 import { supabase } from '../supabase/client'
 
 export const useAuthStore = defineStore('auth', () => {
-  const user = ref(null)
+  const user    = ref(null)
+  const loading = ref(false)
+  const error   = ref('')
 
   async function init() {
     const { data: { session } } = await supabase.auth.getSession()
@@ -13,24 +15,34 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
 
-  async function signUp(email, password) {
-    const { data, error } = await supabase.auth.signUp({ email, password })
-    if (error) throw error
-    // 이메일 인증 없이 바로 세션 설정
-    if (data?.session) {
-      user.value = data.session.user
-    }
-    return data
+  async function signup(email, password) {
+    loading.value = true; error.value = ''
+    const { data, err } = await supabase.auth.signUp({ email, password })
+    loading.value = false
+    if (err) { error.value = err.message; return false }
+    if (data?.session) user.value = data.session.user
+    return true
   }
 
-  async function signIn(email, password) {
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) throw error
+  async function login(email, password) {
+    loading.value = true; error.value = ''
+    const { err } = await supabase.auth.signInWithPassword({ email, password })
+    loading.value = false
+    if (err) { error.value = err.message; return false }
+    return true
   }
 
-  async function signOut() {
+  async function logout() {
     await supabase.auth.signOut()
   }
 
-  return { user, init, signUp, signIn, signOut }
+  // 하위 호환용 alias
+  const signUp  = signup
+  const signIn  = async (email, password) => {
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password })
+    if (err) throw err
+  }
+  const signOut = logout
+
+  return { user, loading, error, init, signup, login, logout, signUp, signIn, signOut }
 })

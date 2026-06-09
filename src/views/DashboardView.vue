@@ -6,7 +6,7 @@
         <span class="topbar-logo">⛳ 필드 스코어</span>
         <div class="topbar-right">
           <span class="user-email">{{ auth.user?.email }}</span>
-          <button class="btn btn-outline" style="padding:6px 14px;font-size:13px" @click="logout">로그아웃</button>
+          <router-link to="/settings" class="btn btn-outline" style="padding:6px 14px;font-size:13px">설정</router-link>
         </div>
       </div>
     </header>
