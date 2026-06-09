@@ -94,11 +94,8 @@ async function withdraw() {
     withdrawError.value = '"탈퇴" 라고 정확히 입력해주세요.'; return
   }
   withdrawing.value = true
-  // 라운드 데이터 삭제
   await supabase.from('golf_rounds').delete().eq('user_id', auth.user.id)
-  // 계정 삭제 (Supabase RPC 또는 그냥 로그아웃)
-  const { error } = await supabase.rpc('delete_user').catch(() => ({ error: true }))
-  if (error) await auth.logout()
+  await auth.logout()
   router.push('/login')
 }
 </script>
