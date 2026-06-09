@@ -79,10 +79,16 @@
         <p class="mode-desc">0=파, 1=보기, 2=더블보기, -1=버디</p>
 
         <table class="scorecard-table">
-          <tbody>
-            <!-- IN: 1~9홀 -->
+          <thead>
             <tr>
-              <td class="row-label">IN</td>
+              <th class="label-cell">홀</th>
+              <th v-for="h in 9" :key="h">{{ h }}</th>
+              <th class="sum-cell">T</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="label-cell">Score</td>
               <td v-for="h in 9" :key="'in'+h">
                 <input
                   v-model.number="diffs[h-1]"
@@ -90,26 +96,39 @@
                   class="diff-input" :class="diffClass(diffs[h-1])"
                 />
               </td>
-              <td class="row-total" :class="front9Diff > 0 ? 'over' : front9Diff < 0 ? 'birdie' : 'even'">
+              <td class="sum-cell row-total" :class="front9Diff > 0 ? 'over' : front9Diff < 0 ? 'birdie' : 'even'">
                 {{ front9Diff > 0 ? '+' : '' }}{{ front9Diff }}
-              </td>
-            </tr>
-            <!-- OUT: 10~18홀 (18홀만) -->
-            <tr v-if="form.holes === 18">
-              <td class="row-label">OUT</td>
-              <td v-for="h in 9" :key="'out'+h">
-                <input
-                  v-model.number="diffs[h+8]"
-                  type="number" min="-5" max="15"
-                  class="diff-input" :class="diffClass(diffs[h+8])"
-                />
-              </td>
-              <td class="row-total" :class="back9Diff > 0 ? 'over' : back9Diff < 0 ? 'birdie' : 'even'">
-                {{ back9Diff > 0 ? '+' : '' }}{{ back9Diff }}
               </td>
             </tr>
           </tbody>
         </table>
+
+        <template v-if="form.holes === 18">
+          <table class="scorecard-table" style="margin-top:10px">
+            <thead>
+              <tr>
+                <th class="label-cell">홀</th>
+                <th v-for="h in 9" :key="h">{{ h+9 }}</th>
+                <th class="sum-cell">T</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="label-cell">Score</td>
+                <td v-for="h in 9" :key="'out'+h">
+                  <input
+                    v-model.number="diffs[h+8]"
+                    type="number" min="-5" max="15"
+                    class="diff-input" :class="diffClass(diffs[h+8])"
+                  />
+                </td>
+                <td class="sum-cell row-total" :class="back9Diff > 0 ? 'over' : back9Diff < 0 ? 'birdie' : 'even'">
+                  {{ back9Diff > 0 ? '+' : '' }}{{ back9Diff }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </template>
       </div>
 
       <div v-if="saveError" class="error-msg" style="margin-top:12px">{{ saveError }}</div>
@@ -335,20 +354,32 @@ async function save() {
 }
 .scorecard-table tr:first-child td { border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 4px; }
 
-.row-label {
+.label-cell {
   width: 40px;
-  font-weight: 800;
-  font-size: 14px;
-  color: #555;
+  font-weight: 700;
+  font-size: 12px;
+  color: var(--text-muted);
   text-align: left !important;
   padding-left: 4px !important;
 }
-.row-total {
-  width: 32px;
+.sum-cell {
+  width: 30px;
   font-weight: 800;
-  font-size: 14px;
-  background: #f0fdf4;
-  border-radius: 6px;
+  font-size: 13px;
+  background: #f0fdf4 !important;
+  color: var(--green);
+}
+.scorecard-table th {
+  background: var(--green);
+  color: white;
+  padding: 5px 2px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 12px;
+}
+.row-total {
+  font-weight: 800;
+  font-size: 13px;
 }
 
 .diff-input {
