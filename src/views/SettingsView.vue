@@ -105,7 +105,8 @@ async function withdraw() {
       supabase.from('golf_rounds').delete().eq('user_id', uid)
     })
   }
-  // 즉시 로그아웃 → 로그인 페이지
+  // 계정 삭제 후 로그아웃
+  await supabase.rpc('delete_user')
   await auth.logout()
   router.push('/login')
 }
