@@ -407,9 +407,9 @@ async function save() {
   margin-bottom: 12px;
 }
 
-.scan-card { background: linear-gradient(135deg, #d8f3dc, #b7e4c7); border: none; }
+.scan-card { background: linear-gradient(135deg, #d8f3dc, #b7e4c7); border: none; text-align: center; }
 .scan-title { font-size: 15px; font-weight: 700; margin-bottom: 10px; }
-.scan-actions { display: flex; gap: 10px; }
+.scan-actions { display: flex; gap: 10px; justify-content: center; }
 .scanning-msg { margin-top: 10px; font-size: 14px; color: var(--green); font-weight: 600; }
 
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
