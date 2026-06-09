@@ -64,7 +64,7 @@ async function submit() {
   const { error } = await supabase.auth.updateUser({ password: pw.value })
   loading.value = false
   if (error) {
-    message.value = '변경 실패. 다시 시도해주세요.'; isError.value = true
+    message.value = '변경 실패. 기존과 다른 비밀번호를 입력해주세요.'; isError.value = true
   } else {
     message.value = '✅ 비밀번호가 변경됐습니다.'; isError.value = false
     setTimeout(() => router.replace('/dashboard'), 1500)
