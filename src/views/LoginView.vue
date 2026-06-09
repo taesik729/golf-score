@@ -12,7 +12,8 @@
         <div class="form-group">
           <label>가입한 이메일</label>
           <input v-model="email" type="email" placeholder="이메일 입력"
-            @keyup.enter="sendReset" autocomplete="email" />
+            @keyup.enter="sendReset" autocomplete="email" @blur="validateEmail" />
+          <p v-if="emailError" class="field-error">{{ emailError }}</p>
         </div>
         <p v-if="message" :class="['msg', isError ? 'error' : 'success']">{{ message }}</p>
         <button class="btn btn-primary" style="width:100%" @click="sendReset" :disabled="sending">
@@ -26,7 +27,8 @@
         <div class="form-group">
           <label>이메일</label>
           <input v-model="email" type="email" placeholder="example@email.com"
-            @keyup.enter="submit" autocomplete="email" />
+            @keyup.enter="submit" autocomplete="email" @blur="validateEmail" />
+          <p v-if="emailError" class="field-error">{{ emailError }}</p>
         </div>
         <div class="form-group">
           <label>비밀번호</label>
@@ -67,11 +69,19 @@ const auth     = useAuthStore()
 const router   = useRouter()
 const email    = ref('')
 const pw       = ref('')
-const isSignup = ref(false)
-const isForgot = ref(false)
-const message  = ref('')
-const isError  = ref(false)
-const sending  = ref(false)
+const isSignup    = ref(false)
+const isForgot    = ref(false)
+const message     = ref('')
+const isError     = ref(false)
+const sending     = ref(false)
+const emailError  = ref('')
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function validateEmail() {
+  if (!email.value) { emailError.value = ''; return }
+  emailError.value = EMAIL_RE.test(email.value.trim()) ? '' : '올바른 이메일 형식이 아닙니다.'
+}
 
 function toggle() {
   isSignup.value = !isSignup.value
@@ -79,10 +89,17 @@ function toggle() {
 }
 
 async function submit() {
-  if (!email.value || !pw.value) {
-    message.value = '이메일과 비밀번호를 입력해주세요.'; isError.value = true; return
-  }
   message.value = ''
+  if (!email.value) {
+    emailError.value = '이메일을 입력해주세요.'; return
+  }
+  if (!EMAIL_RE.test(email.value.trim())) {
+    emailError.value = '올바른 이메일 형식이 아닙니다.'; return
+  }
+  emailError.value = ''
+  if (!pw.value) {
+    message.value = '비밀번호를 입력해주세요.'; isError.value = true; return
+  }
   if (isSignup.value) {
     const ok = await auth.signup(email.value.trim(), pw.value)
     if (ok) {
@@ -101,8 +118,12 @@ async function submit() {
 
 async function sendReset() {
   if (!email.value) {
-    message.value = '이메일을 입력해주세요.'; isError.value = true; return
+    emailError.value = '이메일을 입력해주세요.'; return
   }
+  if (!EMAIL_RE.test(email.value.trim())) {
+    emailError.value = '올바른 이메일 형식이 아닙니다.'; return
+  }
+  emailError.value = ''
   sending.value = true; message.value = ''
   const { error } = await supabase.auth.resetPasswordForEmail(email.value.trim(), {
     redirectTo: `${window.location.origin}/reset-password`
@@ -145,6 +166,7 @@ async function sendReset() {
   padding: 4px; text-decoration: underline; width: 100%;
 }
 .link-btn.hint { color: var(--text-muted); font-size: 12px; }
+.field-error { font-size: 12px; color: #ef4444; margin-top: 5px; }
 .privacy-link { text-align: center; }
 .privacy-link a { font-size: 12px; color: rgba(255,255,255,0.6); text-decoration: underline; }
 </style>
