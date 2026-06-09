@@ -26,9 +26,9 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function login(email, password) {
     loading.value = true; error.value = ''
-    const { err } = await supabase.auth.signInWithPassword({ email, password })
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password })
     loading.value = false
-    if (err) { error.value = err.message; return false }
+    if (err) { error.value = '비밀번호를 확인하세요.'; return false }
     return true
   }
 
