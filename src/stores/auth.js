@@ -34,6 +34,7 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function logout() {
     await supabase.auth.signOut()
+    user.value = null
   }
 
   // 하위 호환용 alias
