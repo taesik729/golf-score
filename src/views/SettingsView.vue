@@ -94,9 +94,24 @@ async function withdraw() {
     withdrawError.value = '"탈퇴" 라고 정확히 입력해주세요.'; return
   }
   withdrawing.value = true
-  await supabase.from('golf_rounds').delete().eq('user_id', auth.user.id)
-  await auth.logout()
-  router.push('/login')
+  withdrawError.value = ''
+  try {
+    // 홀별 스코어 삭제 (golf_rounds의 하위 데이터)
+    const { data: rounds } = await supabase
+      .from('golf_rounds').select('id').eq('user_id', auth.user.id)
+    if (rounds?.length) {
+      const ids = rounds.map(r => r.id)
+      await supabase.from('golf_scores').delete().in('round_id', ids)
+    }
+    // 라운드 삭제
+    await supabase.from('golf_rounds').delete().eq('user_id', auth.user.id)
+    // 로그아웃
+    await auth.logout()
+    router.push('/login')
+  } catch (e) {
+    withdrawError.value = '탈퇴 처리 중 오류가 발생했습니다. 다시 시도해주세요.'
+    withdrawing.value = false
+  }
 }
 </script>
 
